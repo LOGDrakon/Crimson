@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crimson</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style id="crimson-theme"></style>
+    <style>
+      body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    </style>
+  </head>
+  <body class="bg-[var(--color-bg)] text-[var(--color-text)] transition-colors duration-300">
+    <div id="root"></div>
+    <script type="text/babel" data-presets="react" src="./app.jsx"></script>
+  </body>
+  </html>

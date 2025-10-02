@@ -1,13 +1,13 @@
 {
   "name": "crimson",
   "version": "1.0.0",
-  "main": "src/main.js",
+  "main": "src/main/main.js",
   "description": "Application Electron multiplateforme pour générer, visualiser et exporter des palettes de couleurs pour le design d'interface",
   "author": "Crimson Team",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev",
+    "dev": "electron .",
     "build": "electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -19,13 +19,11 @@
   "build": {
     "appId": "com.crimson.app",
     "productName": "Crimson",
-    "directories": {
-      "output": "dist"
-    },
+    "directories": { "output": "dist" },
     "files": [
-      "src/**/*",
+      "src/main/**/*",
+      "src/renderer/**/*",
       "assets/**/*",
-      "index.html",
       "package.json"
     ]
   }
