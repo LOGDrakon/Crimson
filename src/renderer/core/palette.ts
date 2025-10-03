@@ -3,7 +3,8 @@ export type TokenName =
   | 'background' | 'surface' | 'text' | 'border'
   | 'success' | 'danger' | 'warning' | 'info'
 
-export type Palette = Record<TokenName, string> // hex string like #RRGGBB
+// Allow dynamic tokens beyond the predefined names
+export type Palette = Record<string, string> // hex string like #RRGGBB
 
 export const defaultPalette: Palette = {
   primary: '#6366f1',

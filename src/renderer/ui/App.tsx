@@ -3,14 +3,16 @@ import { PalettePanel } from './PalettePanel'
 import { PreviewPanel } from './PreviewPanel'
 import { ExportPanel } from './ExportPanel'
 import { A11yPanel } from './A11yPanel'
+import { ProjectPanel } from './ProjectPanel'
 import { usePaletteStore } from '../store/paletteStore'
 
-type TabKey = 'palette' | 'preview' | 'export' | 'a11y'
+type TabKey = 'palette' | 'preview' | 'export' | 'a11y' | 'project'
 
 export const App: React.FC = () => {
   const [tab, setTab] = useState<TabKey>('palette')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   const palette = usePaletteStore((s) => s.palette)
+  const setPalette = usePaletteStore((s) => s.setPalette)
 
   useMemo(() => {
     const cls = theme === 'dark' ? 'dark' : 'light'
@@ -33,6 +35,21 @@ export const App: React.FC = () => {
     root.style.setProperty('--color-info', palette.info)
   }, [palette])
 
+  // Load palette from store on first mount and persist on change
+  useEffect(() => {
+    (async () => {
+      const saved = await window.crimson.storeGet('palette')
+      if (saved && typeof saved === 'object') {
+        setPalette(saved as any)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    window.crimson.storeSet('palette', palette)
+  }, [palette])
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-default bg-surface px-4 py-3 flex items-center justify-between">
@@ -49,6 +66,7 @@ export const App: React.FC = () => {
           <li><button className={`btn ${tab==='preview'?'btn-primary':''}`} onClick={() => setTab('preview')}>Preview</button></li>
           <li><button className={`btn ${tab==='export'?'btn-primary':''}`} onClick={() => setTab('export')}>Export</button></li>
           <li><button className={`btn ${tab==='a11y'?'btn-primary':''}`} onClick={() => setTab('a11y')}>Accessibilité</button></li>
+          <li><button className={`btn ${tab==='project'?'btn-primary':''}`} onClick={() => setTab('project')}>Projet</button></li>
         </ul>
       </nav>
       <main className="flex-1 p-4">
@@ -56,6 +74,7 @@ export const App: React.FC = () => {
         {tab === 'preview' && <PreviewPanel />}
         {tab === 'export' && <ExportPanel />}
         {tab === 'a11y' && <A11yPanel />}
+        {tab === 'project' && <ProjectPanel />}
       </main>
     </div>
   )

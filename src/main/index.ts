@@ -83,6 +83,21 @@ ipcMain.handle('fs:openText', async () => {
   return { filePath, content }
 })
 
+ipcMain.handle('fs:exportMany', async (_evt, files: { name: string, content: string, encoding?: 'utf8' | 'base64' }[]) => {
+  const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })
+  if (result.canceled || result.filePaths.length === 0) return null
+  const dir = result.filePaths[0]
+  await Promise.all(files.map(f => {
+    const filePath = join(dir, f.name)
+    if (f.encoding === 'base64') {
+      const buf = Buffer.from(f.content, 'base64')
+      return fs.writeFile(filePath, buf)
+    }
+    return fs.writeFile(filePath, f.content, 'utf-8')
+  }))
+  return dir
+})
+
 ipcMain.handle('store:get', (_evt, key: string) => {
   return store.get(key)
 })

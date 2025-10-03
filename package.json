@@ -9,6 +9,10 @@
     "start": "npm run dev",
     "dev": "electron-vite dev",
     "build": "electron-vite build && electron-builder",
+    "build:win": "electron-vite build && electron-builder --win",
+    "build:mac": "electron-vite build && electron-builder --mac",
+    "build:linux": "electron-vite build && electron-builder --linux",
+    "build:all": "electron-vite build && electron-builder -wml",
     "preview": "electron-vite preview",
     "lint": "echo 'no lint configured'",
     "test": "echo \"Error: no test specified\" && exit 1"
