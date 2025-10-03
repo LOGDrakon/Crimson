@@ -5,16 +5,28 @@ import { parse, formatHex, converter } from 'culori'
 type HarmonyMode = 'complementary' | 'analogous' | 'triadic' | 'tetradic' | 'monochrome'
 
 type State = {
+  theme: 'light' | 'dark'
+  palettes: { light: Palette, dark: Palette }
   palette: Palette
+  groups: { id: string, name: string }[]
+  tokenGroups: Record<string, string | null>
+  imageDataUrl: string | null
   history: Palette[]
   future: Palette[]
+  setTheme: (t: 'light' | 'dark') => void
   setToken: (name: string, hex: string) => void
   addToken: (name?: string, hex?: string) => void
   removeToken: (name: string) => void
+  renameToken: (oldName: string, newName: string) => void
   setPalette: (p: Palette) => void
   undo: () => void
   redo: () => void
   generateHarmony: (mode: HarmonyMode, base: string) => void
+  addGroup: (name?: string) => string
+  renameGroup: (id: string, name: string) => void
+  removeGroup: (id: string) => void
+  assignTokenToGroup: (token: string, groupId: string | null) => void
+  setImageDataUrl: (url: string | null) => void
   exportCSS: () => string
   exportJSON: () => string
   tailwindConfig: () => any
@@ -25,6 +37,8 @@ type State = {
   exportAndroidXML: () => string
   exportASE: () => string
   contrastToBackground: (hex: string) => number
+  recommendFor: (token: string) => { label: string, value: string }[]
+  applyRecommendation: (token: string, value?: string) => void
 }
 
 const toHex = (c: any) => formatHex(c) || '#000000'
@@ -35,6 +49,19 @@ const uniqueName = (existing: string[], base: string = 'custom') => {
     name = `${base}${i++}`
   }
   return name
+}
+const safeHex = (val?: string) => {
+  if (!val) return '#000000'
+  let v = val.trim()
+  if (!v.startsWith('#')) v = '#' + v
+  const short = /^#([0-9a-fA-F]{3})$/
+  const long = /^#([0-9a-fA-F]{6})$/
+  if (short.test(v)) {
+    const m = v.slice(1)
+    v = '#' + m.split('').map(ch => ch + ch).join('')
+  }
+  if (!long.test(v)) return '#000000'
+  return v.toLowerCase()
 }
 
 const rotateHue = (hex: string, deg: number) => {
@@ -58,23 +85,59 @@ const sanitizeXmlName = (s: string) => {
 }
 
 export const usePaletteStore = create<State>((set, get) => ({
+  theme: 'dark',
+  palettes: { light: defaultPalette, dark: defaultPalette },
   palette: defaultPalette,
+  groups: [
+    { id: 'core', name: 'Système' },
+    { id: 'brand', name: 'Marque' },
+    { id: 'semantic', name: 'Sémantique' },
+    { id: 'neutrals', name: 'Neutres' },
+    { id: 'custom', name: 'Personnalisé' },
+  ],
+  tokenGroups: {
+    background: 'core', surface: 'core', text: 'core', border: 'core',
+    primary: 'brand', secondary: 'brand', accent: 'brand', tertiary: 'brand', link: 'brand',
+    success: 'semantic', danger: 'semantic', warning: 'semantic', info: 'semantic',
+    muted: 'neutrals'
+  },
+  imageDataUrl: null,
   history: [],
   future: [],
+  setTheme: (t) => set((s) => ({ theme: t, palette: s.palettes[t] })),
   setToken: (name, hex) => set((s) => {
     const prev = s.palette
-    const next = { ...prev, [name]: hex }
-    return { palette: next, history: [...s.history, prev], future: [] }
+    const next = { ...prev, [name]: safeHex(hex) }
+    const palettes = { ...s.palettes, [s.theme]: next }
+    return { palette: next, palettes, history: [...s.history, prev], future: [] }
   }),
   addToken: (name, hex) => set((s) => {
     const key = name && !s.palette[name] ? name : uniqueName(Object.keys(s.palette))
-    const next = { ...s.palette, [key]: hex || '#888888' }
-    return { palette: next, history: [...s.history, s.palette], future: [] }
+    const next = { ...s.palette, [key]: safeHex(hex || '#888888') }
+    const palettes = { ...s.palettes, [s.theme]: next }
+    const tokenGroups = { ...s.tokenGroups, [key]: s.tokenGroups[key] ?? 'custom' }
+    return { palette: next, palettes, tokenGroups, history: [...s.history, s.palette], future: [] }
   }),
   removeToken: (name) => set((s) => {
     const next = { ...s.palette }
     delete next[name]
-    return { palette: next, history: [...s.history, s.palette], future: [] }
+    const tg = { ...s.tokenGroups }
+    delete tg[name]
+    const palettes = { ...s.palettes, [s.theme]: next }
+    return { palette: next, palettes, tokenGroups: tg, history: [...s.history, s.palette], future: [] }
+  }),
+  renameToken: (oldName, newName) => set((s) => {
+    const trimmed = (newName || '').trim()
+    if (!trimmed || trimmed === oldName || s.palette[trimmed]) return s
+    const next: Palette = {}
+    for (const [k,v] of Object.entries(s.palette)) next[k === oldName ? trimmed : k] = v as string
+    const palettes = { ...s.palettes, [s.theme]: next }
+    const tokenGroups = { ...s.tokenGroups }
+    if (tokenGroups[oldName] !== undefined) {
+      tokenGroups[trimmed] = tokenGroups[oldName] || null
+      delete tokenGroups[oldName]
+    }
+    return { palette: next, palettes, tokenGroups, history: [...s.history, s.palette], future: [] }
   }),
   setPalette: (p) => set((s) => ({ palette: p, history: [...s.history, s.palette], future: [] })),
   undo: () => set((s) => {
@@ -82,20 +145,23 @@ export const usePaletteStore = create<State>((set, get) => ({
     if (!prev) return s
     const history = s.history.slice(0, -1)
     const future = [s.palette, ...s.future]
-    return { palette: prev, history, future }
+    const palettes = { ...s.palettes, [s.theme]: prev }
+    return { palette: prev, palettes, history, future }
   }),
   redo: () => set((s) => {
     const next = s.future[0]
     if (!next) return s
     const future = s.future.slice(1)
     const history = [...s.history, s.palette]
-    return { palette: next, history, future }
+    const palettes = { ...s.palettes, [s.theme]: next }
+    return { palette: next, palettes, history, future }
   }),
   generateHarmony: (mode, base) => {
     const p = { ...get().palette }
     switch (mode) {
       case 'complementary':
         p.secondary = rotateHue(base, 180)
+        p.accent = rotateHue(base, 0)
         break
       case 'analogous':
         p.secondary = rotateHue(base, -30)
@@ -116,24 +182,27 @@ export const usePaletteStore = create<State>((set, get) => ({
         p.accent = rotateHue(base, 0)
         break
     }
-    set((s) => ({ palette: p, history: [...s.history, s.palette], future: [] }))
+    set((s) => ({ palette: p, palettes: { ...s.palettes, [s.theme]: p }, history: [...s.history, s.palette], future: [] }))
   },
+  addGroup: (name) => {
+    const id = uniqueName(get().groups.map(g => g.id), 'group')
+    const g = { id, name: name || 'Groupe' }
+    set((s) => ({ groups: [...s.groups, g] }))
+    return id
+  },
+  renameGroup: (id, name) => set((s) => ({ groups: s.groups.map(g => g.id === id ? { ...g, name } : g) })),
+  removeGroup: (id) => set((s) => {
+    const groups = s.groups.filter(g => g.id !== id)
+    const tokenGroups = Object.fromEntries(
+      Object.entries(s.tokenGroups).map(([t, gid]) => [t, gid === id ? null : gid])
+    ) as Record<string, string | null>
+    return { groups, tokenGroups }
+  }),
+  assignTokenToGroup: (token, groupId) => set((s) => ({ tokenGroups: { ...s.tokenGroups, [token]: groupId } })),
+  setImageDataUrl: (url) => set(() => ({ imageDataUrl: url })),
   exportCSS: () => {
     const p = get().palette
-    const vars = {
-      '--color-primary': p.primary,
-      '--color-secondary': p.secondary,
-      '--color-accent': p.accent,
-      '--color-background': p.background,
-      '--color-surface': p.surface,
-      '--color-foreground': p.text,
-      '--color-border': p.border,
-      '--color-success': p.success,
-      '--color-danger': p.danger,
-      '--color-warning': p.warning,
-      '--color-info': p.info,
-    }
-    const body = Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')
+    const body = Object.entries(p).map(([k, v]) => `  --color-${k}: ${v};`).join('\n')
     return `:root{\n${body}\n}`
   },
   exportJSON: () => JSON.stringify(get().palette, null, 2),
@@ -142,19 +211,7 @@ export const usePaletteStore = create<State>((set, get) => ({
     return {
       theme: {
         extend: {
-          colors: {
-            primary: p.primary,
-            secondary: p.secondary,
-            accent: p.accent,
-            background: p.background,
-            surface: p.surface,
-            foreground: p.text,
-            border: p.border,
-            success: p.success,
-            danger: p.danger,
-            warning: p.warning,
-            info: p.info,
-          }
+          colors: Object.fromEntries(Object.entries(p))
         }
       }
     }
@@ -261,5 +318,24 @@ export const usePaletteStore = create<State>((set, get) => ({
     const b64 = btoa(bin)
     return b64
   },
-  contrastToBackground: (hex: string) => contrastRatio(hex, get().palette.background)
+  contrastToBackground: (hex: string) => contrastRatio(hex, get().palette.background),
+  recommendFor: (token) => {
+    const base = get().palette.primary || '#6366f1'
+    const recs: { label: string, value: string }[] = []
+    recs.push({ label: 'Complémentaire', value: rotateHue(base, 180) })
+    recs.push({ label: 'Analogue -30°', value: rotateHue(base, -30) })
+    recs.push({ label: 'Analogue +30°', value: rotateHue(base, 30) })
+    recs.push({ label: 'Triadique +120°', value: rotateHue(base, 120) })
+    recs.push({ label: 'Triadique -120°', value: rotateHue(base, -120) })
+    recs.push({ label: 'Tétradique +180°', value: rotateHue(base, 180) })
+    recs.push({ label: 'Monochrome', value: rotateHue(base, 0) })
+    const uniq = new Map<string, string>()
+    for (const r of recs) if (!uniq.has(r.value.toLowerCase())) uniq.set(r.value.toLowerCase(), r.label)
+    return Array.from(uniq.entries()).map(([value, label]) => ({ label, value }))
+  },
+  applyRecommendation: (token, value) => {
+    const options = get().recommendFor(token)
+    const chosen = value || (options[0]?.value)
+    if (chosen) get().setToken(token, chosen)
+  }
 }))

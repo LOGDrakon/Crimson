@@ -1,6 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* stylelint-disable at-rule-no-unknown */
+/* Tailwind directives (processed by PostCSS/Tailwind) */
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+/* stylelint-enable at-rule-no-unknown */
 
 :root {
   --color-background: 17 24 39; /* slate-900 */
@@ -24,13 +27,19 @@
 }
 
 @layer base {
-  :root, .dark {
-    color-scheme: dark;
-  }
+  :root, .dark { color-scheme: dark; }
+  .light { color-scheme: light; }
   body {
-    @apply bg-background text-foreground;
+    background-color: rgb(var(--color-background));
+    color: rgb(var(--color-foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-image: radial-gradient(1200px 600px at 90% -10%, rgb(var(--color-primary) / 0.08), transparent 60%), radial-gradient(800px 400px at -10% 110%, rgb(var(--color-accent) / 0.06), transparent 60%);
   }
 }
+
+/* Text selection styling */
+::selection { background: rgb(var(--color-primary)); color: #fff; }
 
 @layer utilities {
   .bg-background { background-color: rgb(var(--color-background)); }
@@ -38,8 +47,57 @@
   .text-foreground { color: rgb(var(--color-foreground)); }
   .text-muted { color: rgb(var(--color-foreground) / 0.8); }
   .border-default { border-color: rgb(var(--color-border)); }
-  .btn {
-    @apply inline-flex items-center gap-2 rounded-md px-3 py-2 border border-default bg-surface hover:opacity-90 transition;
+  .card {
+    border-radius: 0.75rem; /* rounded-xl */
+    border: 1px solid rgb(var(--color-border));
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    background-color: rgb(var(--color-surface) / 0.8);
   }
-  .btn-primary { background-color: rgb(var(--color-primary)); color: white; border-color: transparent; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    border-radius: 0.5rem; /* rounded-lg */
+    padding: 0.5rem 0.75rem; /* px-3 py-2 */
+    border: 1px solid rgb(var(--color-border));
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    transition-property: all; transition-duration: 200ms; transition-timing-function: cubic-bezier(0.2,0,0,1);
+    background-color: rgb(var(--color-surface) / 0.8);
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+  .btn:focus { outline: none; }
+  .btn-primary { background-color: rgb(var(--color-primary)); color: #fff; border-color: transparent; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    font-size: 0.75rem; line-height: 1rem; padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    border: 1px solid rgb(var(--color-border));
+    background-color: rgb(var(--color-surface) / 0.7);
+  }
+  .btn:focus-visible { box-shadow: 0 0 0 2px rgb(var(--color-primary)); }
+  .title-gradient { background: linear-gradient(90deg, rgb(var(--color-primary)), rgb(var(--color-accent))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .underline-animated { position: relative; }
+  .underline-animated::after { content: ""; position: absolute; left: 0; bottom: -2px; height: 2px; width: 0; background: linear-gradient(90deg, rgb(var(--color-primary)), rgb(var(--color-secondary))); transition: width .25s ease; }
+  .underline-animated.active::after { width: 100%; }
+  .fade-in { animation: fade-in .25s ease-out both; }
+  @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: rgb(var(--color-border)); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  /* Select elements: ensure visible text in both themes */
+  select.btn {
+    color: rgb(var(--color-foreground)) !important;
+    background-color: rgb(var(--color-surface) / 0.9) !important;
+    border-color: rgb(var(--color-border));
+  }
+  select.btn option { color: #111; background-color: #fff; }
+  .dark select.btn option { color: #f9fafb; background-color: #111827; }
+  /* Listbox */
+  .listbox .listbox-options { backdrop-filter: blur(4px); }
+  .listbox-option { border-bottom: 1px solid rgb(var(--color-border)); }
+  .listbox-option:last-child { border-bottom: none; }
+  .listbox-option.active { background-color: rgb(var(--color-surface) / 0.8); }
+  .listbox-option.selected { background-color: rgb(var(--color-primary) / 0.15); }
 }

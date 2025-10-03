@@ -14,6 +14,7 @@ export default defineConfig({
   },
   renderer: {
     plugins: [react()],
+    publicDir: 'assets',
     build: {
       outDir: 'dist/renderer'
     }

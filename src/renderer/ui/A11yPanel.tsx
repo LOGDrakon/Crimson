@@ -1,6 +1,7 @@
 import React from 'react'
 import { usePaletteStore } from '../store/paletteStore'
 import { simulateCvd } from '../utils/colorBlindness'
+import { Listbox } from './components/Listbox'
 import { contrastRatio } from '../core/palette'
 
 function badge(ok: boolean) {
@@ -25,15 +26,22 @@ export const A11yPanel: React.FC = () => {
       <h2 className="text-lg font-semibold">Accessibilité</h2>
       <div className="flex items-center gap-2 mb-3">
         <span>Simulateur daltonisme:</span>
-        <select className="btn" value={cvd} onChange={e => setCvd(e.target.value as any)}>
-          <option value="none">Aucun</option>
-          <option value="protanopia">Protanopie</option>
-          <option value="deuteranopia">Deutéranopie</option>
-          <option value="tritanopia">Tritanopie</option>
-        </select>
+        <div className="min-w-[220px]">
+          <Listbox
+            options={[
+              { value: 'none', label: 'Aucun' },
+              { value: 'protanopia', label: 'Protanopie' },
+              { value: 'deuteranopia', label: 'Deutéranopie' },
+              { value: 'tritanopia', label: 'Tritanopie' },
+            ]}
+            value={cvd}
+            onChange={(v) => setCvd(v as any)}
+          />
+        </div>
         <button className="btn" onClick={() => autoFixContrast(palette, setToken)}>Corriger automatiquement les contrastes</button>
       </div>
-      <table className="min-w-[400px]">
+      <div className="card p-4">
+      <table className="min-w-[400px] w-full">
         <thead>
           <tr className="text-left"><th>Token</th><th>Couleur</th><th>Ratio</th><th>AA</th><th>AAA</th></tr>
         </thead>
@@ -53,7 +61,8 @@ export const A11yPanel: React.FC = () => {
             )
           })}
         </tbody>
-      </table>
+  </table>
+  </div>
     </div>
   )
 }

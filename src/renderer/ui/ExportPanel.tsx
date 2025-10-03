@@ -34,6 +34,7 @@ export const ExportPanel: React.FC = () => {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Export</h2>
+      <div className="card p-4">
       <div className="grid grid-cols-2 gap-2 max-w-xl">
         {[
           { key: 'xaml', label: 'XAML' },
@@ -51,6 +52,7 @@ export const ExportPanel: React.FC = () => {
             <span>{item.label}</span>
           </label>
         ))}
+      </div>
       </div>
       <div>
         <button className="btn btn-primary" onClick={exportAll}>Exporter la palette</button>
