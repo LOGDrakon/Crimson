@@ -1,5 +1,6 @@
 // Temporary clean copy of PalettePanel while original file truncation issues are resolved
 import React from 'react'
+import ReactDOM from 'react-dom'
 import { usePaletteStore } from '../store/paletteStore'
 import { contrastRatio, lighten } from '../core/palette'
 import { HistoryBar } from './HistoryBar'
@@ -47,13 +48,23 @@ export const PalettePanel: React.FC = () => {
 
   const [active, setActive] = React.useState<string>('primary')
   const [hexInput, setHexInput] = React.useState('')
+  // Side panel only now (no floating dock)
+  const listRef = React.useRef<HTMLDivElement|null>(null)
   const [search, setSearch] = React.useState('')
   const [groupFilter, setGroupFilter] = React.useState('')
   const [renaming, setRenaming] = React.useState<string|null>(null)
   const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set())
   const [customVariants, setCustomVariants] = React.useState<Record<string,string[]>>({})
+  // Side panel enhancements
+  const [panelSide, setPanelSide] = React.useState<'right'|'left'>('right')
+  const [panelWidth, setPanelWidth] = React.useState<number>(256)
+  const [panelCompact, setPanelCompact] = React.useState<boolean>(false)
+  const resizing = React.useRef<null | { startX:number, startW:number }>(null)
+  const [tokenHistory, setTokenHistory] = React.useState<Record<string,string[]>>({})
 
   React.useEffect(() => { setHexInput(effectivePalette[active] || ''); }, [effectivePalette, active]);
+
+  // (Removed dock persistence & drag logic)
 
   const allTokens = React.useMemo(() => Object.keys(palette).sort(), [palette])
 
@@ -107,7 +118,21 @@ export const PalettePanel: React.FC = () => {
     return vars.some(v => v.toLowerCase().includes(lc))
   }).sort()
 
-  const commitHex = (value: string) => { if (!active) return; const v = safeHex(value); if (sandboxActive) setSandboxToken?.(active, v); else setToken(active, v); };
+  const commitHex = (value: string) => {
+    if (!active) return;
+    const v = safeHex(value);
+    // History: store previous value if changed
+    const current = effectivePalette[active]
+    if (current && current.toLowerCase() !== v.toLowerCase()) {
+      setTokenHistory(h => {
+        const prev = h[active] || []
+        if (prev[0]?.toLowerCase() === current.toLowerCase()) return h
+        const nextArr = [current, ...prev].slice(0,10)
+        return { ...h, [active]: nextArr }
+      })
+    }
+    if (sandboxActive) setSandboxToken?.(active, v); else setToken(active, v);
+  };
   const onHexChange = (val: string) => { setHexInput(val); if (/^#?[0-9a-fA-F]{6}$/.test(val.replace('#',''))) commitHex(val); };
   const duplicate = () => { if (!active) return; const next = nextName(allTokens, active + 'Copy'); addToken(next, effectivePalette[active]); setActive(next); };
   const genVariants = () => generateVariantsFor?.(active);
@@ -145,40 +170,135 @@ export const PalettePanel: React.FC = () => {
     setCustomVariants(m => ({ ...m, [base]: [...(m[base]||[]), suf] }))
   }
 
+  // Hydrate persisted panel settings
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const side = await window.crimson.storeGet('palettePanel.side')
+        const width = await window.crimson.storeGet('palettePanel.width')
+        const compact = await window.crimson.storeGet('palettePanel.compact')
+        if (side === 'left' || side === 'right') setPanelSide(side)
+        if (typeof width === 'number' && width >= 220 && width <= 420) setPanelWidth(width)
+        if (typeof compact === 'boolean') setPanelCompact(compact)
+      } catch {}
+    })()
+  }, [])
+
+  // Persist on change (debounced for width)
+  React.useEffect(() => { window.crimson.storeSet('palettePanel.side', panelSide) }, [panelSide])
+  React.useEffect(() => { window.crimson.storeSet('palettePanel.compact', panelCompact) }, [panelCompact])
+  React.useEffect(() => {
+    const id = setTimeout(()=>{ window.crimson.storeSet('palettePanel.width', panelWidth) }, 300)
+    return () => clearTimeout(id)
+  }, [panelWidth])
+
+  // Resize effect
+  useResizeEffect(resizing, setPanelWidth, panelSide)
+
+  const revertToken = (hex: string) => {
+    if (!active) return; commitHex(hex)
+  }
+
+  const renderHistory = () => {
+    const hist = tokenHistory[active] || []
+    if (!hist.length) return null
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="text-[10px] font-medium opacity-70">Historique</div>
+        <div className="flex flex-wrap gap-1">
+          {hist.map(h => (
+            <button key={h} onClick={()=>revertToken(h)} className={`px-2 py-0.5 rounded text-[10px] font-mono border ${isDark?'border-neutral-700 hover:border-neutral-500':'border-neutral-300 hover:border-neutral-400'}`}>{h.replace('#','')}</button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const renderPreviews = () => (
+    <div className="grid grid-cols-2 gap-2 text-[10px]">
+      {[
+        { label: 'Light', bg: '#ffffff', fg: '#111111' },
+        { label: 'Dark', bg: '#0b0b0c', fg: '#ffffff' }
+      ].map(p => {
+        const cr = contrastRatio(activeValue, p.bg).toFixed(2)
+        return (
+          <button key={p.label} onClick={()=>copy(activeValue)} className="flex flex-col gap-1 items-center group focus:outline-none">
+            <div className="w-full h-12 rounded border border-neutral-300 dark:border-neutral-700 flex items-center justify-center relative overflow-hidden" style={{ background: p.bg }}>
+              <div className="w-7 h-7 rounded shadow-inner border border-black/10" style={{ background: activeValue }} />
+              <div className="absolute bottom-0 left-0 right-0 text-[9px] text-center bg-black/30 text-white opacity-0 group-hover:opacity-100 transition">{cr}:1</div>
+            </div>
+            <span className="opacity-60 group-hover:text-amber-400 transition">{p.label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  const renderSidePanel = () => (
+    <>
+      <div className={`px-2 sm:px-2 py-2 border-b flex items-center gap-1 sticky top-0 z-10 backdrop-blur-md ${isDark?'border-neutral-800 bg-neutral-950/70':'border-neutral-200 bg-white/70'}`}>
+        {!panelCompact && (
+          <span className="font-semibold text-xs truncate max-w-[120px]" title={active}>{active}</span>
+        )}
+        <button onClick={()=>setPanelCompact(c=>!c)} title={panelCompact?'Étendre':'Réduire'} className={`ml-auto w-7 h-7 flex items-center justify-center rounded text-[13px] ${isDark?'bg-neutral-800 hover:bg-neutral-700':'bg-neutral-200 hover:bg-neutral-300'}`}>{panelCompact?'›':'‹'}</button>
+        <button onClick={()=>setPanelSide(s=>s==='right'?'left':'right')} title="Changer côté" className={`w-7 h-7 flex items-center justify-center rounded text-[13px] ${isDark?'bg-neutral-800 hover:bg-neutral-700':'bg-neutral-200 hover:bg-neutral-300'}`}>⇆</button>
+      </div>
+      {!panelCompact && (
+        <div className="p-3 flex flex-col gap-4 overflow-auto text-xs flex-1 min-h-0">
+          <div className="flex items-center gap-2">
+            <input type="color" value={safeHex(activeValue)} onChange={e=>commitHex(e.target.value)} className="w-10 h-10 p-0 border rounded cursor-pointer bg-transparent" />
+            <div className="flex flex-col gap-1 flex-1">
+              <input value={hexInput} onChange={e=>onHexChange(e.target.value)} className={`px-2 py-1 rounded font-mono text-[11px] ${isDark?'bg-neutral-800 border border-neutral-700':'bg-neutral-100 border border-neutral-300'}`} />
+              <div className="flex justify-between text-[10px] opacity-70">
+                <span>Contrast bg</span><span className="tabular-nums">{ratioToBg.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+          {renderPreviews()}
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <button onClick={genVariants} className={`${isDark?'bg-neutral-800 hover:bg-neutral-700':'bg-neutral-200 hover:bg-neutral-300'} rounded px-2 py-1`}>Variants</button>
+            <button onClick={autoContrast} className={`${isDark?'bg-neutral-800 hover:bg-neutral-700':'bg-neutral-200 hover:bg-neutral-300'} rounded px-2 py-1`}>AutoCtr</button>
+            <button onClick={duplicate} className={`${isDark?'bg-neutral-800 hover:bg-neutral-700':'bg-neutral-200 hover:bg-neutral-300'} rounded px-2 py-1`}>Dupliquer</button>
+            <button onClick={()=>addToken()} className={`${isDark?'bg-neutral-800 hover:bg-neutral-700':'bg-neutral-200 hover:bg-neutral-300'} rounded px-2 py-1`}>+ Token</button>
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-medium">Sandbox</span>
+              <button onClick={()=>setSandboxActive?.(!sandboxActive)} className={`px-2 py-0.5 rounded border ${sandboxActive?'border-amber-500 text-amber-400':isDark?'border-neutral-700 hover:border-neutral-500':'border-neutral-300 hover:border-neutral-400'}`}>{sandboxActive?'Actif':'Off'}</button>
+            </div>
+            {sandboxActive && (
+              <div className="flex gap-2">
+                <button onClick={()=>applySandbox?.()} className="flex-1 px-2 py-1 rounded bg-green-600 hover:bg-green-500 text-white text-[11px]">Appliquer</button>
+                <button onClick={()=>discardSandbox?.()} className="flex-1 px-2 py-1 rounded bg-red-600 hover:bg-red-500 text-white text-[11px]">Annuler</button>
+              </div>
+            )}
+          </div>
+          {renderHistory()}
+          <div className="text-[10px] opacity-60 leading-snug">
+            <p>Double-clic: renommer. Variants auto: bouton Variants.</p>
+          </div>
+        </div>
+      )}
+    </>
+  )
+
   return (
+    <>
     <div className="flex flex-col h-full overflow-hidden">
-      <div className={`p-3 border-b flex flex-wrap gap-2 items-center ${panelBg}`}>        
+      <div className={`p-3 border-b flex flex-wrap gap-2 items-center ${panelBg}`}>
         <input id="palette-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher token…" className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-neutral-800 border border-neutral-700' : 'bg-neutral-100 border border-neutral-300'}`} />
         <select value={groupFilter} onChange={e => setGroupFilter(e.target.value)} className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-neutral-800 border border-neutral-700' : 'bg-neutral-100 border border-neutral-300'}`}>
           <option value="">Groupes: Tous</option>
           {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
         </select>
-        <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => addToken()} className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-neutral-800 hover:bg-neutral-700' : 'bg-neutral-200 hover:bg-neutral-300'}`}>+ token</button>
-          <button onClick={() => setSandboxActive?.(!sandboxActive)} className={`px-2 py-1 rounded text-xs border ${sandboxActive ? 'bg-amber-600/90 border-amber-500' : (isDark ? 'bg-neutral-800 border-neutral-700 hover:bg-neutral-700' : 'bg-neutral-200 border-neutral-300 hover:bg-neutral-300')}`}>Sandbox {sandboxActive ? 'ON' : 'OFF'}</button>
-          {sandboxActive && <>
-            <button onClick={() => applySandbox?.()} className="px-2 py-1 rounded bg-green-600 hover:bg-green-500 text-xs text-white">Appliquer</button>
-            <button onClick={() => discardSandbox?.()} className="px-2 py-1 rounded bg-red-600 hover:bg-red-500 text-xs text-white">Annuler</button>
-          </>}
-        </div>
-      </div>
-      <div className={`px-3 py-2 border-b flex items-center gap-3 text-xs ${barBg}`}>
-        <div className="font-medium truncate max-w-[140px]" title={active}>{active}</div>
-        <div className="flex gap-1">
-          <button onClick={copyHex} title="Copier hex" className={`px-2 py-1 rounded ${isDark ? 'bg-neutral-800 hover:bg-neutral-700' : 'bg-neutral-200 hover:bg-neutral-300'}`}>#</button>
-          <button onClick={copyCSS} title="Copier variable CSS" className={`px-2 py-1 rounded ${isDark ? 'bg-neutral-800 hover:bg-neutral-700' : 'bg-neutral-200 hover:bg-neutral-300'}`}>var</button>
-          <button onClick={duplicate} title="Dupliquer" className={`px-2 py-1 rounded ${isDark ? 'bg-neutral-800 hover:bg-neutral-700' : 'bg-neutral-200 hover:bg-neutral-300'}`}>⧉</button>
-          <button onClick={genVariants} title="Générer variants" className={`px-2 py-1 rounded ${isDark ? 'bg-neutral-800 hover:bg-neutral-700' : 'bg-neutral-200 hover:bg-neutral-300'}`}>Δ</button>
-          <button onClick={autoContrast} title="Auto contraste" className={`px-2 py-1 rounded ${isDark ? 'bg-neutral-800 hover:bg-neutral-700' : 'bg-neutral-200 hover:bg-neutral-300'}`}>⚙︎</button>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <input value={hexInput} onChange={e => onHexChange(e.target.value)} className={`w-28 px-2 py-1 rounded font-mono ${isDark ? 'bg-neutral-800 border border-neutral-700' : 'bg-neutral-100 border border-neutral-300'}`} />
-          <div className={`w-6 h-6 rounded border ${isDark ? 'border-neutral-700' : 'border-neutral-300'}`} style={{ background: activeValue }} />
-          <div className="text-neutral-400 tabular-nums">{ratioToBg.toFixed(2)}:1</div>
-        </div>
       </div>
       <HistoryBar />
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex flex-1 min-h-0 relative">
+        <div
+          ref={listRef}
+          className="flex-1 overflow-auto p-4 space-y-4"
+          style={panelSide==='right' ? { marginRight: panelCompact ? 40 : panelWidth } : { marginLeft: panelCompact ? 40 : panelWidth }}
+        >
         {visibleBases.map(base => {
           const baseVal = effectivePalette[base]
           const variants = (variantMap[base] || []).sort()
@@ -250,9 +370,47 @@ export const PalettePanel: React.FC = () => {
         {visibleBases.length === 0 && (
           <div className="text-xs text-neutral-500">Aucun token ne correspond aux filtres.</div>
         )}
+        </div>
       </div>
     </div>
+    {ReactDOM.createPortal(
+      <div
+        className={`fixed top-[var(--panel-offset,96px)] ${panelSide==='right'?'right-0':'left-0'} h-[calc(100vh-var(--panel-offset,96px))] flex flex-col shadow-lg ${panelSide==='right'?'border-l':'border-r'} ${isDark?'border-neutral-800 bg-neutral-950/70':'border-neutral-200 bg-white/80'} backdrop-blur-md transition-[width] duration-200`}
+        style={{ width: panelCompact ? 40 : panelWidth, zIndex: 40 }}
+      >
+        {renderSidePanel()}
+        {!panelCompact && (
+          <div
+            onMouseDown={(e)=>{ resizing.current = { startX: e.clientX, startW: panelWidth }; e.preventDefault(); }}
+            className={`absolute top-0 ${panelSide==='right'?'left-0':'right-0'} w-1 cursor-ew-resize h-full opacity-0 hover:opacity-60 bg-amber-500/40`}
+          />
+        )}
+      </div>,
+      document.body
+    )}
+    </>
   );
+
+// Helper hook
+function useResizeEffect(resizingRef: React.MutableRefObject<any>, setPanelWidth: (w:number)=>void, side: 'left'|'right') {
+  React.useEffect(()=>{
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return
+      e.preventDefault()
+      const { startX, startW } = resizingRef.current
+      const delta = e.clientX - startX
+      const raw = side === 'right' ? (startW - delta) : (startW + delta)
+      const next = Math.min(420, Math.max(220, raw))
+      setPanelWidth(next)
+    }
+    const onUp = () => { resizingRef.current = null }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [resizingRef, setPanelWidth, side])
+}
+
+// Since we need access to component state, define renderSidePanel as function inside component scope – patched earlier
 };
 
 export default PalettePanel;

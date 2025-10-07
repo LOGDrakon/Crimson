@@ -14,7 +14,7 @@ var react_production_min = {};
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var l$1 = Symbol.for("react.element"), n$3 = Symbol.for("react.portal"), p$4 = Symbol.for("react.fragment"), q$1 = Symbol.for("react.strict_mode"), r = Symbol.for("react.profiler"), t = Symbol.for("react.provider"), u = Symbol.for("react.context"), v$1 = Symbol.for("react.forward_ref"), w = Symbol.for("react.suspense"), x = Symbol.for("react.memo"), y = Symbol.for("react.lazy"), z$1 = Symbol.iterator;
+var l$1 = Symbol.for("react.element"), n$3 = Symbol.for("react.portal"), p$4 = Symbol.for("react.fragment"), q$1 = Symbol.for("react.strict_mode"), r = Symbol.for("react.profiler"), t$1 = Symbol.for("react.provider"), u = Symbol.for("react.context"), v$1 = Symbol.for("react.forward_ref"), w = Symbol.for("react.suspense"), x = Symbol.for("react.memo"), y = Symbol.for("react.lazy"), z$1 = Symbol.iterator;
 function A$1(a) {
   if (null === a || "object" !== typeof a) return null;
   a = z$1 && a[z$1] || a["@@iterator"];
@@ -185,7 +185,7 @@ react_production_min.cloneElement = function(a, b, e2) {
 };
 react_production_min.createContext = function(a) {
   a = { $$typeof: u, _currentValue: a, _currentValue2: a, _threadCount: 0, Provider: null, Consumer: null, _defaultValue: null, _globalName: null };
-  a.Provider = { $$typeof: t, _context: a };
+  a.Provider = { $$typeof: t$1, _context: a };
   return a.Consumer = a;
 };
 react_production_min.createElement = M$2;
@@ -6960,6 +6960,7 @@ function checkDCE() {
   reactDom.exports = reactDom_production_min;
 }
 var reactDomExports = reactDom.exports;
+const ReactDOM = /* @__PURE__ */ getDefaultExportFromCjs(reactDomExports);
 var createRoot;
 var m = reactDomExports;
 {
@@ -7270,7 +7271,7 @@ function contrastRatio(hex1, hex2) {
   const [hi2, lo] = L1 > L2 ? [L1, L2] : [L2, L1];
   return (hi2 + 0.05) / (lo + 0.05);
 }
-function clamp01(x2) {
+function clamp01$1(x2) {
   return Math.min(1, Math.max(0, x2));
 }
 function rgbToHex(r2, g, b) {
@@ -7279,7 +7280,7 @@ function rgbToHex(r2, g, b) {
 }
 function lighten(hex2, amt) {
   const { r: r2, g, b } = hexToRgb(hex2);
-  const k2 = clamp01(amt);
+  const k2 = clamp01$1(amt);
   return rgbToHex(
     Math.round(r2 + (255 - r2) * k2),
     Math.round(g + (255 - g) * k2),
@@ -7288,7 +7289,7 @@ function lighten(hex2, amt) {
 }
 function darken(hex2, amt) {
   const { r: r2, g, b } = hexToRgb(hex2);
-  const k2 = clamp01(amt);
+  const k2 = clamp01$1(amt);
   return rgbToHex(
     Math.round(r2 * (1 - k2)),
     Math.round(g * (1 - k2)),
@@ -7296,7 +7297,7 @@ function darken(hex2, amt) {
   );
 }
 function mix(hex1, hex2, ratio) {
-  const k2 = clamp01(ratio);
+  const k2 = clamp01$1(ratio);
   const a = hexToRgb(hex1);
   const b = hexToRgb(hex2);
   return rgbToHex(
@@ -7343,7 +7344,7 @@ function rgbDistance(a, b) {
   const dr = A2.r - B2.r, dg2 = A2.g - B2.g, db2 = A2.b - B2.b;
   return Math.sqrt(dr * dr + dg2 * dg2 + db2 * db2);
 }
-function srgbToLinear(c4) {
+function srgbToLinear$1(c4) {
   const x2 = c4 / 255;
   return x2 <= 0.04045 ? x2 / 12.92 : Math.pow((x2 + 0.055) / 1.055, 2.4);
 }
@@ -7362,8 +7363,8 @@ function linearToOklab(r2, g, b) {
 }
 function deltaE(a, b) {
   const A2 = hexToRgb(a), B2 = hexToRgb(b);
-  const la2 = linearToOklab(srgbToLinear(A2.r), srgbToLinear(A2.g), srgbToLinear(A2.b));
-  const lb2 = linearToOklab(srgbToLinear(B2.r), srgbToLinear(B2.g), srgbToLinear(B2.b));
+  const la2 = linearToOklab(srgbToLinear$1(A2.r), srgbToLinear$1(A2.g), srgbToLinear$1(A2.b));
+  const lb2 = linearToOklab(srgbToLinear$1(B2.r), srgbToLinear$1(B2.g), srgbToLinear$1(B2.b));
   const dL = la2.L - lb2.L;
   const da2 = la2.a - lb2.a;
   const db2 = la2.b - lb2.b;
@@ -10195,9 +10196,9 @@ const uniqueName = (existing, base = "custom") => {
 const rotateHue = (hex2, deg) => {
   const c4 = parse(hex2);
   if (!c4) return hex2;
-  const toHsl = converter("hsl");
+  const toHsl2 = converter("hsl");
   const fromHsl = converter("rgb");
-  const hsl = toHsl(c4);
+  const hsl = toHsl2(c4);
   hsl.h = (((hsl.h || 0) + deg) % 360 + 360) % 360;
   return toHex(fromHsl(hsl));
 };
@@ -10210,7 +10211,7 @@ const sanitizeXmlName = (s) => {
   if (!/[a-z_]/.test(cleaned[0])) cleaned = `c_${cleaned}`;
   return cleaned;
 };
-const usePaletteStore = create((set, get) => ({
+const usePaletteStore = create((set, get2) => ({
   theme: "dark",
   themeMode: "dark",
   palettes: { light: defaultPalette, dark: defaultPalette },
@@ -10303,7 +10304,7 @@ const usePaletteStore = create((set, get) => ({
     return { palette: next, palettes, history, future, paletteVersion: (s.paletteVersion || 0) + 1 };
   }),
   generateHarmony: (mode, base) => {
-    const p2 = { ...get().palette };
+    const p2 = { ...get2().palette };
     switch (mode) {
       case "complementary":
         p2.secondary = rotateHue(base, 180);
@@ -10330,7 +10331,7 @@ const usePaletteStore = create((set, get) => ({
     set((s) => ({ palette: p2, palettes: { ...s.palettes, [s.theme]: p2 }, history: [...s.history, s.palette], future: [], paletteVersion: (s.paletteVersion || 0) + 1 }));
   },
   addGroup: (name) => {
-    const id2 = uniqueName(get().groups.map((g2) => g2.id), "group");
+    const id2 = uniqueName(get2().groups.map((g2) => g2.id), "group");
     const g = { id: id2, name: name || "Groupe" };
     set((s) => ({ groups: [...s.groups, g] }));
     return id2;
@@ -10354,14 +10355,14 @@ const usePaletteStore = create((set, get) => ({
   assignTokenToGroup: (token, groupId) => set((s) => ({ tokenGroups: { ...s.tokenGroups, [token]: groupId } })),
   setImageDataUrl: (url) => set(() => ({ imageDataUrl: url })),
   exportCSS: () => {
-    const p2 = get().palette;
+    const p2 = get2().palette;
     const body = Object.entries(p2).map(([k2, v2]) => `  --color-${k2}: ${v2};`).join("\n");
     return `:root{
 ${body}
 }`;
   },
   exportCSSThemes: () => {
-    const { palettes } = get();
+    const { palettes } = get2();
     const formatBlock = (selector, pal) => {
       const lines = Object.entries(pal).map(([k2, v2]) => `  --color-${k2}: ${v2};`).join("\n");
       return `${selector} {
@@ -10375,9 +10376,9 @@ ${lines}
 ${dark}
 `;
   },
-  exportJSON: () => JSON.stringify(get().palette, null, 2),
+  exportJSON: () => JSON.stringify(get2().palette, null, 2),
   exportStyleDictionary: () => {
-    const { palettes } = get();
+    const { palettes } = get2();
     const wrap = (pal) => Object.fromEntries(Object.entries(pal).map(([k2, v2]) => [k2, { value: v2 }]));
     const out = {
       color: {
@@ -10388,7 +10389,7 @@ ${dark}
     return JSON.stringify(out, null, 2);
   },
   tailwindConfig: () => {
-    const p2 = get().palette;
+    const p2 = get2().palette;
     return {
       theme: {
         extend: {
@@ -10398,7 +10399,7 @@ ${dark}
     };
   },
   exportSCSS: () => {
-    const p2 = get().palette;
+    const p2 = get2().palette;
     const lines = Object.entries(p2).map(([k2, v2]) => `$${k2}: ${v2};`);
     const map = `
 $colors: (
@@ -10407,7 +10408,7 @@ ${Object.entries(p2).map(([k2, v2]) => `  ${k2}: ${v2}`).join(",\n")}
     return lines.join("\n") + map + "\n";
   },
   exportXAML: () => {
-    const p2 = get().palette;
+    const p2 = get2().palette;
     const toARGB = (hex2) => {
       const h = hex2.replace("#", "");
       const r2 = h.substring(0, 2), g = h.substring(2, 4), b = h.substring(4, 6);
@@ -10421,7 +10422,7 @@ ${entries}
 `;
   },
   exportGIMP: () => {
-    const p2 = get().palette;
+    const p2 = get2().palette;
     const header = `GIMP Palette
 Name: Crimson
 Columns: 4
@@ -10435,7 +10436,7 @@ Columns: 4
     return header + body + "\n";
   },
   exportSwiftUI: () => {
-    const p2 = get().palette;
+    const p2 = get2().palette;
     const lines = Object.entries(p2).map(([k2, v2]) => `    static let ${sanitizeSwiftName(k2)} = Color(hex: "${v2}")`);
     return `import SwiftUI
 
@@ -10459,7 +10460,7 @@ extension Color {
 `;
   },
   exportAndroidXML: () => {
-    const p2 = get().palette;
+    const p2 = get2().palette;
     const items = Object.entries(p2).map(([k2, v2]) => `    <color name="${sanitizeXmlName(k2)}">${v2}</color>`).join("\n");
     return `<?xml version="1.0" encoding="utf-8"?>
 <resources>
@@ -10468,7 +10469,7 @@ ${items}
 `;
   },
   exportASE: () => {
-    const p2 = get().palette;
+    const p2 = get2().palette;
     const entries = Object.entries(p2);
     const chunks = [];
     const concat = (parts) => {
@@ -10526,11 +10527,11 @@ ${items}
   },
   // Contrast helper now respects sandbox effective palette if active
   contrastToBackground: (hex2) => {
-    const ep = get().effectivePalette ? get().effectivePalette() : get().palette;
+    const ep = get2().effectivePalette ? get2().effectivePalette() : get2().palette;
     return contrastRatio(hex2, ep.background);
   },
   generateVariantsFor: (base) => {
-    const s = get();
+    const s = get2();
     const p2 = { ...s.palette };
     const color = p2[base];
     if (!color) return;
@@ -10544,7 +10545,7 @@ ${items}
     const hover = lighten(color, scaleLight);
     const active = darken(color, scaleDark);
     const toLch = converter("lch");
-    const toRgb = converter("rgb");
+    const toRgb2 = converter("rgb");
     const lchMix = (a, b, ratio) => {
       const ca2 = parse(a) && toLch(parse(a));
       const cb2 = parse(b) && toLch(parse(b));
@@ -10554,7 +10555,7 @@ ${items}
       if (dh2 > 180) dh2 -= 360;
       if (dh2 < -180) dh2 += 360;
       const out = { mode: "lch", l: ca2.l + (cb2.l - ca2.l) * r2, c: ca2.c + (cb2.c - ca2.c) * r2, h: (h1 + dh2 * r2 + 360) % 360 };
-      const rgb = toRgb(out);
+      const rgb = toRgb2(out);
       return formatHex(rgb) || mix(a, b, ratio);
     };
     const subtle = lchMix(bg2, color, 0.12);
@@ -10572,10 +10573,10 @@ ${items}
   },
   generateAllVariants: () => {
     const bases = ["primary", "success", "danger", "warning", "info"];
-    bases.forEach((b) => get().generateVariantsFor(b));
+    bases.forEach((b) => get2().generateVariantsFor(b));
   },
   detectConflicts: () => {
-    const p2 = get().effectivePalette ? get().effectivePalette() : get().palette;
+    const p2 = get2().effectivePalette ? get2().effectivePalette() : get2().palette;
     const entries = Object.entries(p2);
     const out = [];
     for (const [name, hex2] of entries) {
@@ -10627,7 +10628,7 @@ ${items}
   }),
   discardSandbox: () => set((s) => ({ sandbox: {}, sandboxActive: false, paletteVersion: (s.paletteVersion || 0) + 1 })),
   effectivePalette: () => {
-    const s = get();
+    const s = get2();
     if (!s.sandboxActive) return s.palette;
     return { ...s.palette, ...s.sandbox };
   },
@@ -10665,19 +10666,19 @@ ${items}
   recommendFor: (token) => {
     const storeAny = usePaletteStore;
     if (!storeAny._recCache) storeAny._recCache = /* @__PURE__ */ new Map();
-    const version = get().paletteVersion || 0;
-    const cacheKey = token + "|" + version + "|" + get().evaluationTarget + "|" + get().targetContrast;
+    const version = get2().paletteVersion || 0;
+    const cacheKey = token + "|" + version + "|" + get2().evaluationTarget + "|" + get2().targetContrast;
     if (storeAny._recCache.has(cacheKey)) {
       return storeAny._recCache.get(cacheKey);
     }
-    const palette = get().effectivePalette ? get().effectivePalette() : get().palette;
+    const palette = get2().effectivePalette ? get2().effectivePalette() : get2().palette;
     const bg2 = palette.background || "#0b0b0c";
     const primary = palette.primary || "#6366f1";
     const surface = palette.surface || "#1f2937";
-    const evaluationTarget = get().evaluationTarget;
-    const targetContrast = get().targetContrast;
+    const evaluationTarget = get2().evaluationTarget;
+    const targetContrast = get2().targetContrast;
     const toLch = converter("lch");
-    const toRgb = converter("rgb");
+    const toRgb2 = converter("rgb");
     const lchMix = (a, b, ratio) => {
       const ca2 = toLch(parse(a));
       const cb2 = toLch(parse(b));
@@ -10694,7 +10695,7 @@ ${items}
         c: ca2.c + (cb2.c - ca2.c) * ra2,
         h: (h1 + dh2 * ra2 + 360) % 360
       };
-      const rgb = toRgb(out2);
+      const rgb = toRgb2(out2);
       return formatHex(rgb) || mix(a, b, ratio);
     };
     const out = [];
@@ -10799,12 +10800,12 @@ ${items}
     return result;
   },
   applyRecommendation: (token, value) => {
-    const options = get().recommendFor(token);
+    const options = get2().recommendFor(token);
     const chosen = value || options[0]?.value;
-    if (chosen) get().setToken(token, chosen);
+    if (chosen) get2().setToken(token, chosen);
   },
   applyAutoContrast: (token) => {
-    const s = get();
+    const s = get2();
     const p2 = s.palette;
     const target = s.targetContrast || 4.5;
     const value = p2[token];
@@ -10820,19 +10821,19 @@ ${items}
     }
   },
   generateSemanticPack: (pivot) => {
-    const s = get();
+    const s = get2();
     const base = pivot && s.palette[pivot] ? s.palette[pivot] : s.palette.primary || "#6366f1";
-    const toHsl = converter("hsl");
-    const toRgb = converter("rgb");
+    const toHsl2 = converter("hsl");
+    const toRgb2 = converter("rgb");
     const src = parse(base);
     if (!src) return;
-    const hsl = toHsl(src);
+    const hsl = toHsl2(src);
     const mk2 = (deg, satDelta = 0, lightDelta = 0) => {
       const clone = { ...hsl };
       clone.h = (((clone.h || 0) + deg) % 360 + 360) % 360;
       clone.s = Math.min(1, Math.max(0, (clone.s || 0) + satDelta));
       clone.l = Math.min(1, Math.max(0, (clone.l || 0) + lightDelta));
-      return formatHex(toRgb(clone)) || base;
+      return formatHex(toRgb2(clone)) || base;
     };
     const next = { ...s.palette };
     const assign = (k2, v2) => {
@@ -10852,7 +10853,7 @@ ${items}
   },
   // Redundancy report (palette similarity) uses effective palette
   redundancyReport: () => {
-    const p2 = get().effectivePalette ? get().effectivePalette() : get().palette;
+    const p2 = get2().effectivePalette ? get2().effectivePalette() : get2().palette;
     const entries = Object.entries(p2);
     const bases = entries.filter(([n2]) => !/(Hover|Active|Subtle|SubtleHover|Fg)$/.test(n2));
     const out = [];
@@ -10869,38 +10870,38 @@ ${items}
   },
   // Align one token exactly to another (copy value)
   alignTokenTo: (source, target) => {
-    const s = get();
-    const p2 = get().effectivePalette ? get().effectivePalette() : s.palette;
+    const s = get2();
+    const p2 = get2().effectivePalette ? get2().effectivePalette() : s.palette;
     if (!p2[source] || !p2[target]) return;
     if (p2[source].toLowerCase() === p2[target].toLowerCase()) return;
     s.setToken(source, p2[target]);
   },
   // Differentiate token from reference by adjusting hue/lightness until ΔE >= ~5
   differentiateToken: (token, reference) => {
-    const s = get();
-    const p2 = get().effectivePalette ? get().effectivePalette() : s.palette;
+    const s = get2();
+    const p2 = get2().effectivePalette ? get2().effectivePalette() : s.palette;
     const base = p2[token];
     const ref = p2[reference];
     if (!base || !ref) return;
     if (deltaE(base, ref) >= 5) return;
     const parsed = parse(base);
     if (!parsed) return;
-    const toHsl = converter("hsl");
-    const toRgb = converter("rgb");
-    const hsl = toHsl(parsed);
+    const toHsl2 = converter("hsl");
+    const toRgb2 = converter("rgb");
+    const hsl = toHsl2(parsed);
     let hash = 0;
     for (let i = 0; i < token.length; i++) hash = hash * 31 + token.charCodeAt(i) & 4294967295;
     const jitter = hash % 11 - 5;
     hsl.h = (((hsl.h || 0) + 15 + jitter) % 360 + 360) % 360;
     const refParsed = parse(ref);
     if (refParsed) {
-      const refHsl = toHsl(refParsed);
+      const refHsl = toHsl2(refParsed);
       if (refHsl && typeof refHsl.l === "number" && typeof hsl.l === "number") {
         if (refHsl.l >= hsl.l) hsl.l = Math.max(0, hsl.l - 0.12);
         else hsl.l = Math.min(1, hsl.l + 0.12);
       }
     }
-    let candidate = formatHex(toRgb(hsl)) || base;
+    let candidate = formatHex(toRgb2(hsl)) || base;
     if (deltaE(candidate, ref) < 5) {
       candidate = luminance(candidate) > 0.5 ? darken(candidate, 0.2) : lighten(candidate, 0.2);
     }
@@ -11013,11 +11014,17 @@ const PalettePanel = () => {
   const tokenGroups = usePaletteStore((s) => s.tokenGroups);
   const [active, setActive] = React$2.useState("primary");
   const [hexInput, setHexInput] = React$2.useState("");
+  const listRef = React$2.useRef(null);
   const [search, setSearch] = React$2.useState("");
   const [groupFilter, setGroupFilter] = React$2.useState("");
   const [renaming, setRenaming] = React$2.useState(null);
   const [collapsed, setCollapsed] = React$2.useState(/* @__PURE__ */ new Set());
   const [customVariants, setCustomVariants] = React$2.useState({});
+  const [panelSide, setPanelSide] = React$2.useState("right");
+  const [panelWidth, setPanelWidth] = React$2.useState(256);
+  const [panelCompact, setPanelCompact] = React$2.useState(false);
+  const resizing = React$2.useRef(null);
+  const [tokenHistory, setTokenHistory] = React$2.useState({});
   React$2.useEffect(() => {
     setHexInput(effectivePalette[active] || "");
   }, [effectivePalette, active]);
@@ -11067,6 +11074,15 @@ const PalettePanel = () => {
   const commitHex = (value) => {
     if (!active) return;
     const v2 = safeHex$1(value);
+    const current = effectivePalette[active];
+    if (current && current.toLowerCase() !== v2.toLowerCase()) {
+      setTokenHistory((h) => {
+        const prev = h[active] || [];
+        if (prev[0]?.toLowerCase() === current.toLowerCase()) return h;
+        const nextArr = [current, ...prev].slice(0, 10);
+        return { ...h, [active]: nextArr };
+      });
+    }
     if (sandboxActive) setSandboxToken?.(active, v2);
     else setToken(active, v2);
   };
@@ -11083,10 +11099,6 @@ const PalettePanel = () => {
   const genVariants = () => generateVariantsFor?.(active);
   const autoContrast = () => applyAutoContrast?.(active);
   const activeValue = effectivePalette[active] || "#000000";
-  const copyHex = () => copy(activeValue);
-  const copyCSS = () => {
-    if (active) copy(`var(--color-${active})`);
-  };
   const ratioToBg = contrastRatio(activeValue, effectivePalette.background || "#000");
   const startRename = (t2) => setRenaming(t2);
   const finishRename = (oldName, next) => {
@@ -11100,7 +11112,6 @@ const PalettePanel = () => {
   const inSandbox = (token) => sandboxActive && sandbox && sandbox[token] && sandbox[token] !== palette[token];
   const isDark = theme === "dark";
   const panelBg = isDark ? "bg-neutral-950/70 border-neutral-800" : "bg-white/70 border-neutral-200";
-  const barBg = isDark ? "bg-neutral-900/60 border-neutral-800" : "bg-neutral-100/70 border-neutral-200";
   const cardBase = isDark ? "bg-neutral-900/40" : "bg-white";
   const cardBorder = isDark ? "border-neutral-800 hover:border-neutral-600" : "border-neutral-300 hover:border-neutral-400";
   const activeBorder = isDark ? "border-amber-400" : "border-amber-500";
@@ -11124,149 +11135,267 @@ const PalettePanel = () => {
     setToken(token, color);
     setCustomVariants((m2) => ({ ...m2, [base]: [...m2[base] || [], suf] }));
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col h-full overflow-hidden", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `p-3 border-b flex flex-wrap gap-2 items-center ${panelBg}`, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { id: "palette-search", value: search, onChange: (e2) => setSearch(e2.target.value), placeholder: "Rechercher token…", className: `px-2 py-1 rounded text-xs ${isDark ? "bg-neutral-800 border border-neutral-700" : "bg-neutral-100 border border-neutral-300"}` }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: groupFilter, onChange: (e2) => setGroupFilter(e2.target.value), className: `px-2 py-1 rounded text-xs ${isDark ? "bg-neutral-800 border border-neutral-700" : "bg-neutral-100 border border-neutral-300"}`, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Groupes: Tous" }),
-        groups.map((g) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: g.id, children: g.name }, g.id))
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex items-center gap-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => addToken(), className: `px-2 py-1 rounded text-xs ${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"}`, children: "+ token" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setSandboxActive?.(!sandboxActive), className: `px-2 py-1 rounded text-xs border ${sandboxActive ? "bg-amber-600/90 border-amber-500" : isDark ? "bg-neutral-800 border-neutral-700 hover:bg-neutral-700" : "bg-neutral-200 border-neutral-300 hover:bg-neutral-300"}`, children: [
-          "Sandbox ",
-          sandboxActive ? "ON" : "OFF"
-        ] }),
-        sandboxActive && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => applySandbox?.(), className: "px-2 py-1 rounded bg-green-600 hover:bg-green-500 text-xs text-white", children: "Appliquer" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => discardSandbox?.(), className: "px-2 py-1 rounded bg-red-600 hover:bg-red-500 text-xs text-white", children: "Annuler" })
-        ] })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `px-3 py-2 border-b flex items-center gap-3 text-xs ${barBg}`, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-medium truncate max-w-[140px]", title: active, children: active }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: copyHex, title: "Copier hex", className: `px-2 py-1 rounded ${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"}`, children: "#" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: copyCSS, title: "Copier variable CSS", className: `px-2 py-1 rounded ${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"}`, children: "var" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: duplicate, title: "Dupliquer", className: `px-2 py-1 rounded ${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"}`, children: "⧉" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: genVariants, title: "Générer variants", className: `px-2 py-1 rounded ${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"}`, children: "Δ" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: autoContrast, title: "Auto contraste", className: `px-2 py-1 rounded ${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"}`, children: "⚙︎" })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex items-center gap-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: hexInput, onChange: (e2) => onHexChange(e2.target.value), className: `w-28 px-2 py-1 rounded font-mono ${isDark ? "bg-neutral-800 border border-neutral-700" : "bg-neutral-100 border border-neutral-300"}` }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-6 h-6 rounded border ${isDark ? "border-neutral-700" : "border-neutral-300"}`, style: { background: activeValue } }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-neutral-400 tabular-nums", children: [
-          ratioToBg.toFixed(2),
+  React$2.useEffect(() => {
+    (async () => {
+      try {
+        const side = await window.crimson.storeGet("palettePanel.side");
+        const width = await window.crimson.storeGet("palettePanel.width");
+        const compact = await window.crimson.storeGet("palettePanel.compact");
+        if (side === "left" || side === "right") setPanelSide(side);
+        if (typeof width === "number" && width >= 220 && width <= 420) setPanelWidth(width);
+        if (typeof compact === "boolean") setPanelCompact(compact);
+      } catch {
+      }
+    })();
+  }, []);
+  React$2.useEffect(() => {
+    window.crimson.storeSet("palettePanel.side", panelSide);
+  }, [panelSide]);
+  React$2.useEffect(() => {
+    window.crimson.storeSet("palettePanel.compact", panelCompact);
+  }, [panelCompact]);
+  React$2.useEffect(() => {
+    const id2 = setTimeout(() => {
+      window.crimson.storeSet("palettePanel.width", panelWidth);
+    }, 300);
+    return () => clearTimeout(id2);
+  }, [panelWidth]);
+  useResizeEffect(resizing, setPanelWidth, panelSide);
+  const revertToken = (hex2) => {
+    if (!active) return;
+    commitHex(hex2);
+  };
+  const renderHistory = () => {
+    const hist = tokenHistory[active] || [];
+    if (!hist.length) return null;
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] font-medium opacity-70", children: "Historique" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1", children: hist.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => revertToken(h), className: `px-2 py-0.5 rounded text-[10px] font-mono border ${isDark ? "border-neutral-700 hover:border-neutral-500" : "border-neutral-300 hover:border-neutral-400"}`, children: h.replace("#", "") }, h)) })
+    ] });
+  };
+  const renderPreviews = () => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 gap-2 text-[10px]", children: [
+    { label: "Light", bg: "#ffffff", fg: "#111111" },
+    { label: "Dark", bg: "#0b0b0c", fg: "#ffffff" }
+  ].map((p2) => {
+    const cr = contrastRatio(activeValue, p2.bg).toFixed(2);
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => copy(activeValue), className: "flex flex-col gap-1 items-center group focus:outline-none", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full h-12 rounded border border-neutral-300 dark:border-neutral-700 flex items-center justify-center relative overflow-hidden", style: { background: p2.bg }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-7 h-7 rounded shadow-inner border border-black/10", style: { background: activeValue } }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute bottom-0 left-0 right-0 text-[9px] text-center bg-black/30 text-white opacity-0 group-hover:opacity-100 transition", children: [
+          cr,
           ":1"
         ] })
-      ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "opacity-60 group-hover:text-amber-400 transition", children: p2.label })
+    ] }, p2.label);
+  }) });
+  const renderSidePanel = () => /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `px-2 sm:px-2 py-2 border-b flex items-center gap-1 sticky top-0 z-10 backdrop-blur-md ${isDark ? "border-neutral-800 bg-neutral-950/70" : "border-neutral-200 bg-white/70"}`, children: [
+      !panelCompact && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-xs truncate max-w-[120px]", title: active, children: active }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setPanelCompact((c4) => !c4), title: panelCompact ? "Étendre" : "Réduire", className: `ml-auto w-7 h-7 flex items-center justify-center rounded text-[13px] ${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"}`, children: panelCompact ? "›" : "‹" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setPanelSide((s) => s === "right" ? "left" : "right"), title: "Changer côté", className: `w-7 h-7 flex items-center justify-center rounded text-[13px] ${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"}`, children: "⇆" })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(HistoryBar, {}),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-auto p-4 space-y-4", children: [
-      visibleBases.map((base) => {
-        const baseVal = effectivePalette[base];
-        const variants2 = (variantMap[base] || []).sort();
-        const isCollapsed = collapsed.has(base);
-        const isActiveBase = active === base;
-        return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border border-dashed border-transparent rounded", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "div",
-          {
-            className: `border rounded p-3 ${cardBase} cursor-pointer select-none text-[11px] flex flex-col gap-2 transition ${isActiveBase ? activeBorder : cardBorder}`,
-            onClick: () => setActive(base),
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "button",
-                  {
-                    onClick: (e2) => {
-                      e2.stopPropagation();
-                      toggleCollapse(base);
-                    },
-                    className: `w-5 h-5 inline-flex items-center justify-center text-[10px] rounded ${isDark ? "bg-neutral-800" : "bg-neutral-200"}`,
-                    children: isCollapsed ? "+" : "–"
-                  }
-                ),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-5 h-5 rounded border ${isDark ? "border-neutral-600" : "border-neutral-300"}`, style: { background: baseVal } }),
-                renaming === base ? /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "input",
-                  {
-                    autoFocus: true,
-                    defaultValue: base,
-                    onBlur: (e2) => finishRename(base, e2.target.value),
-                    onKeyDown: (e2) => {
-                      if (e2.key === "Enter") finishRename(base, e2.target.value);
-                      if (e2.key === "Escape") setRenaming(null);
-                    },
-                    className: `px-1 py-0.5 rounded flex-1 ${isDark ? "bg-neutral-800 border border-neutral-700" : "bg-neutral-100 border border-neutral-300"}`
-                  }
-                ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate flex-1", onDoubleClick: () => startRename(base), children: base }),
-                inSandbox(base) && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-amber-400 text-[9px]", title: "Modifié dans sandbox", children: "*" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: (e2) => {
-                  e2.stopPropagation();
-                  removeToken(base);
-                }, className: "text-xs text-red-400 hover:text-red-300", title: "Supprimer", children: "✕" })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `h-8 rounded border ${isDark ? "border-neutral-700" : "border-neutral-300"}`, style: { background: baseVal } }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-mono text-neutral-500 text-[10px] truncate", children: baseVal }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[9px] text-neutral-500", children: [
-                    contrastRatio(baseVal, effectivePalette.background || "#000").toFixed(1),
-                    ":1"
-                  ] })
-                ] }),
-                !isCollapsed && variants2.map((v2) => {
-                  const vVal = effectivePalette[v2];
-                  const isActiveVar = active === v2;
-                  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                    "div",
-                    {
-                      onClick: (e2) => {
+    !panelCompact && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-3 flex flex-col gap-4 overflow-auto text-xs flex-1 min-h-0", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "color", value: safeHex$1(activeValue), onChange: (e2) => commitHex(e2.target.value), className: "w-10 h-10 p-0 border rounded cursor-pointer bg-transparent" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 flex-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: hexInput, onChange: (e2) => onHexChange(e2.target.value), className: `px-2 py-1 rounded font-mono text-[11px] ${isDark ? "bg-neutral-800 border border-neutral-700" : "bg-neutral-100 border border-neutral-300"}` }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between text-[10px] opacity-70", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Contrast bg" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tabular-nums", children: ratioToBg.toFixed(2) })
+          ] })
+        ] })
+      ] }),
+      renderPreviews(),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-2 text-[11px]", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: genVariants, className: `${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"} rounded px-2 py-1`, children: "Variants" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: autoContrast, className: `${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"} rounded px-2 py-1`, children: "AutoCtr" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: duplicate, className: `${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"} rounded px-2 py-1`, children: "Dupliquer" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => addToken(), className: `${isDark ? "bg-neutral-800 hover:bg-neutral-700" : "bg-neutral-200 hover:bg-neutral-300"} rounded px-2 py-1`, children: "+ Token" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between text-[11px]", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "Sandbox" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setSandboxActive?.(!sandboxActive), className: `px-2 py-0.5 rounded border ${sandboxActive ? "border-amber-500 text-amber-400" : isDark ? "border-neutral-700 hover:border-neutral-500" : "border-neutral-300 hover:border-neutral-400"}`, children: sandboxActive ? "Actif" : "Off" })
+        ] }),
+        sandboxActive && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => applySandbox?.(), className: "flex-1 px-2 py-1 rounded bg-green-600 hover:bg-green-500 text-white text-[11px]", children: "Appliquer" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => discardSandbox?.(), className: "flex-1 px-2 py-1 rounded bg-red-600 hover:bg-red-500 text-white text-[11px]", children: "Annuler" })
+        ] })
+      ] }),
+      renderHistory(),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] opacity-60 leading-snug", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "Double-clic: renommer. Variants auto: bouton Variants." }) })
+    ] })
+  ] });
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col h-full overflow-hidden", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `p-3 border-b flex flex-wrap gap-2 items-center ${panelBg}`, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { id: "palette-search", value: search, onChange: (e2) => setSearch(e2.target.value), placeholder: "Rechercher token…", className: `px-2 py-1 rounded text-xs ${isDark ? "bg-neutral-800 border border-neutral-700" : "bg-neutral-100 border border-neutral-300"}` }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: groupFilter, onChange: (e2) => setGroupFilter(e2.target.value), className: `px-2 py-1 rounded text-xs ${isDark ? "bg-neutral-800 border border-neutral-700" : "bg-neutral-100 border border-neutral-300"}`, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Groupes: Tous" }),
+          groups.map((g) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: g.id, children: g.name }, g.id))
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(HistoryBar, {}),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-1 min-h-0 relative", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          ref: listRef,
+          className: "flex-1 overflow-auto p-4 space-y-4",
+          style: panelSide === "right" ? { marginRight: panelCompact ? 40 : panelWidth } : { marginLeft: panelCompact ? 40 : panelWidth },
+          children: [
+            visibleBases.map((base) => {
+              const baseVal = effectivePalette[base];
+              const variants2 = (variantMap[base] || []).sort();
+              const isCollapsed = collapsed.has(base);
+              const isActiveBase = active === base;
+              return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border border-dashed border-transparent rounded", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "div",
+                {
+                  className: `border rounded p-3 ${cardBase} cursor-pointer select-none text-[11px] flex flex-col gap-2 transition ${isActiveBase ? activeBorder : cardBorder}`,
+                  onClick: () => setActive(base),
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "button",
+                        {
+                          onClick: (e2) => {
+                            e2.stopPropagation();
+                            toggleCollapse(base);
+                          },
+                          className: `w-5 h-5 inline-flex items-center justify-center text-[10px] rounded ${isDark ? "bg-neutral-800" : "bg-neutral-200"}`,
+                          children: isCollapsed ? "+" : "–"
+                        }
+                      ),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-5 h-5 rounded border ${isDark ? "border-neutral-600" : "border-neutral-300"}`, style: { background: baseVal } }),
+                      renaming === base ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "input",
+                        {
+                          autoFocus: true,
+                          defaultValue: base,
+                          onBlur: (e2) => finishRename(base, e2.target.value),
+                          onKeyDown: (e2) => {
+                            if (e2.key === "Enter") finishRename(base, e2.target.value);
+                            if (e2.key === "Escape") setRenaming(null);
+                          },
+                          className: `px-1 py-0.5 rounded flex-1 ${isDark ? "bg-neutral-800 border border-neutral-700" : "bg-neutral-100 border border-neutral-300"}`
+                        }
+                      ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate flex-1", onDoubleClick: () => startRename(base), children: base }),
+                      inSandbox(base) && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-amber-400 text-[9px]", title: "Modifié dans sandbox", children: "*" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: (e2) => {
                         e2.stopPropagation();
-                        setActive(v2);
-                      },
-                      className: `relative flex flex-col gap-1 border rounded p-1 pt-4 ${cardBase} ${isActiveVar ? activeBorder : cardBorder}`,
-                      children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "button",
+                        removeToken(base);
+                      }, className: "text-xs text-red-400 hover:text-red-300", title: "Supprimer", children: "✕" })
+                    ] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2", children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1", children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `h-8 rounded border ${isDark ? "border-neutral-700" : "border-neutral-300"}`, style: { background: baseVal } }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-mono text-neutral-500 text-[10px] truncate", children: baseVal }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[9px] text-neutral-500", children: [
+                          contrastRatio(baseVal, effectivePalette.background || "#000").toFixed(1),
+                          ":1"
+                        ] })
+                      ] }),
+                      !isCollapsed && variants2.map((v2) => {
+                        const vVal = effectivePalette[v2];
+                        const isActiveVar = active === v2;
+                        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                          "div",
                           {
                             onClick: (e2) => {
                               e2.stopPropagation();
-                              removeToken(v2);
-                              if (active === v2) setActive(base);
+                              setActive(v2);
                             },
-                            title: "Supprimer variant",
-                            className: "absolute top-0 right-0 text-[10px] px-1 text-red-400 hover:text-red-300",
-                            children: "✕"
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `h-6 rounded border ${isDark ? "border-neutral-700" : "border-neutral-300"}`, style: { background: vVal } }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate", title: v2, children: v2 }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-mono text-neutral-500 text-[10px] truncate", children: vVal })
-                      ]
-                    },
-                    v2
-                  );
-                }),
-                !isCollapsed && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "button",
-                  {
-                    onClick: (e2) => {
-                      e2.stopPropagation();
-                      addCustomVariant(base);
-                    },
-                    className: `h-8 border border-dashed rounded text-[10px] flex items-center justify-center ${isDark ? "border-neutral-700 hover:border-neutral-500" : "border-neutral-300 hover:border-neutral-400"}`,
-                    children: "+ variant"
-                  }
-                )
-              ] })
-            ]
-          }
-        ) }, base);
-      }),
-      visibleBases.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-neutral-500", children: "Aucun token ne correspond aux filtres." })
-    ] })
+                            className: `relative flex flex-col gap-1 border rounded p-1 pt-4 ${cardBase} ${isActiveVar ? activeBorder : cardBorder}`,
+                            children: [
+                              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                                "button",
+                                {
+                                  onClick: (e2) => {
+                                    e2.stopPropagation();
+                                    removeToken(v2);
+                                    if (active === v2) setActive(base);
+                                  },
+                                  title: "Supprimer variant",
+                                  className: "absolute top-0 right-0 text-[10px] px-1 text-red-400 hover:text-red-300",
+                                  children: "✕"
+                                }
+                              ),
+                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `h-6 rounded border ${isDark ? "border-neutral-700" : "border-neutral-300"}`, style: { background: vVal } }),
+                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate", title: v2, children: v2 }),
+                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-mono text-neutral-500 text-[10px] truncate", children: vVal })
+                            ]
+                          },
+                          v2
+                        );
+                      }),
+                      !isCollapsed && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "button",
+                        {
+                          onClick: (e2) => {
+                            e2.stopPropagation();
+                            addCustomVariant(base);
+                          },
+                          className: `h-8 border border-dashed rounded text-[10px] flex items-center justify-center ${isDark ? "border-neutral-700 hover:border-neutral-500" : "border-neutral-300 hover:border-neutral-400"}`,
+                          children: "+ variant"
+                        }
+                      )
+                    ] })
+                  ]
+                }
+              ) }, base);
+            }),
+            visibleBases.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-neutral-500", children: "Aucun token ne correspond aux filtres." })
+          ]
+        }
+      ) })
+    ] }),
+    ReactDOM.createPortal(
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: `fixed top-[var(--panel-offset,96px)] ${panelSide === "right" ? "right-0" : "left-0"} h-[calc(100vh-var(--panel-offset,96px))] flex flex-col shadow-lg ${panelSide === "right" ? "border-l" : "border-r"} ${isDark ? "border-neutral-800 bg-neutral-950/70" : "border-neutral-200 bg-white/80"} backdrop-blur-md transition-[width] duration-200`,
+          style: { width: panelCompact ? 40 : panelWidth, zIndex: 40 },
+          children: [
+            renderSidePanel(),
+            !panelCompact && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                onMouseDown: (e2) => {
+                  resizing.current = { startX: e2.clientX, startW: panelWidth };
+                  e2.preventDefault();
+                },
+                className: `absolute top-0 ${panelSide === "right" ? "left-0" : "right-0"} w-1 cursor-ew-resize h-full opacity-0 hover:opacity-60 bg-amber-500/40`
+              }
+            )
+          ]
+        }
+      ),
+      document.body
+    )
   ] });
+  function useResizeEffect(resizingRef, setPanelWidth2, side) {
+    React$2.useEffect(() => {
+      const onMove = (e2) => {
+        if (!resizingRef.current) return;
+        e2.preventDefault();
+        const { startX, startW } = resizingRef.current;
+        const delta = e2.clientX - startX;
+        const raw = side === "right" ? startW - delta : startW + delta;
+        const next = Math.min(420, Math.max(220, raw));
+        setPanelWidth2(next);
+      };
+      const onUp = () => {
+        resizingRef.current = null;
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+      return () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+    }, [resizingRef, setPanelWidth2, side]);
+  }
 };
 const matrices = {
   protanopia: [
@@ -11762,16 +11891,16 @@ function autoFixContrast(palette, setToken) {
 }
 function nudgeBrightness(hex2, bgHex) {
   try {
-    const toHsl = converter("hsl");
-    const toRgb = converter("rgb");
+    const toHsl2 = converter("hsl");
+    const toRgb2 = converter("rgb");
     const c4 = parse(hex2);
     const bg2 = parse(bgHex);
     if (!c4 || !bg2) return hex2;
-    const hsl = toHsl(c4);
-    const bgHsl = toHsl(bg2);
+    const hsl = toHsl2(c4);
+    const bgHsl = toHsl2(bg2);
     const dir = (bgHsl.l || 0.1) > 0.5 ? -1 : 1;
     const next = { ...hsl, l: Math.max(0, Math.min(1, (hsl.l || 0.5) + dir * 0.02)) };
-    return formatHex(toRgb(next)) || hex2;
+    return formatHex(toRgb2(next)) || hex2;
   } catch {
     return hex2;
   }
@@ -11886,7 +12015,7 @@ class ErrorBoundary extends React$2.Component {
     return this.props.children;
   }
 }
-const useUIStore = create((set, get) => ({
+const useUIStore = create((set, get2) => ({
   onboardingVisible: false,
   onboardingStep: 0,
   totalSteps: 7,
@@ -11979,6 +12108,1079 @@ const OnboardingOverlay = () => {
   ] });
   return reactDomExports.createPortal(content, root2);
 };
+const defaultSeeds = ["#990000"];
+const emptyDraft = () => ({ light: {}, dark: {} });
+const useNewProjectWizard = create((set, get2) => ({
+  open: false,
+  step: "context",
+  // Ordered wizard steps (no duplicates). 'context' covers style/profile inputs.
+  steps: ["context", "seeds", "options", "accessibility", "themes", "naming", "semantics", "components", "preview", "summary"],
+  profile: null,
+  keywords: "",
+  seeds: defaultSeeds,
+  mode: "single",
+  saturation: 0.85,
+  internalContrast: 0.55,
+  neutralLevels: 9,
+  includeSemantic: true,
+  variantScope: ["primary", "success", "danger", "warning", "info"],
+  minContrast: 4.5,
+  highContrastMode: false,
+  themes: { light: true, dark: true, auto: false },
+  tokenPrefix: "",
+  mergeStrategy: "replace",
+  prefixOnMerge: "new",
+  generateNeutrals: true,
+  enforceSemanticDistance: true,
+  distanceThreshold: 5,
+  contrastPolicy: "wcagAA",
+  foregroundHeuristic: "auto",
+  overlayOptions: { enable: false, opacity: 0.5, blend: "overlay" },
+  backgroundLayers: [{ id: "base", role: "base" }],
+  minimalMode: false,
+  exportPresets: { css: true, tailwind: false, json: true },
+  tokenGroupSelections: {},
+  cvdSimulations: { protanopia: false, deuteranopia: false, tritanopia: false },
+  autosaveEnabled: false,
+  styleKeywordsMapping: {},
+  draft: emptyDraft(),
+  applying: false,
+  error: null,
+  confirmReplace: false,
+  history: [],
+  future: [],
+  renameSuggestions: [],
+  openWizard: () => set({ open: true }),
+  closeWizard: () => set({ open: false }),
+  next: () => set((s) => {
+    const i = s.steps.indexOf(s.step);
+    return { step: s.steps[Math.min(s.steps.length - 1, i + 1)] };
+  }),
+  prev: () => set((s) => {
+    const i = s.steps.indexOf(s.step);
+    return { step: s.steps[Math.max(0, i - 1)] };
+  }),
+  go: (st) => set((s) => s.steps.includes(st) ? { step: st } : {}),
+  setSeeds: (v2) => set({ seeds: v2.map((s) => safeHex$2(s)) }),
+  setKeywords: (v2) => set({ keywords: v2 }),
+  setProfile: (p2) => set({ profile: p2 }),
+  setMode: (m2) => set({ mode: m2 }),
+  setSaturation: (n2) => set({ saturation: Math.min(1, Math.max(0, n2)) }),
+  setInternalContrast: (n2) => set({ internalContrast: Math.min(1, Math.max(0, n2)) }),
+  setNeutralLevels: (n2) => set({ neutralLevels: n2 }),
+  toggleSemantic: () => set((s) => ({ includeSemantic: !s.includeSemantic })),
+  toggleVariant: (v2) => set((s) => ({ variantScope: s.variantScope.includes(v2) ? s.variantScope.filter((x2) => x2 !== v2) : [...s.variantScope, v2] })),
+  setMinContrast: (n2) => set({ minContrast: Math.max(1, Math.min(21, n2)) }),
+  toggleThemeFlag: (k2) => set((s) => ({ themes: { ...s.themes, [k2]: !s.themes[k2] } })),
+  setTokenPrefix: (p2) => set({ tokenPrefix: p2 }),
+  setMergeStrategy: (m2) => set({ mergeStrategy: m2 }),
+  setPrefixOnMerge: (p2) => set({ prefixOnMerge: p2 }),
+  setGenerateNeutrals: (on) => set({ generateNeutrals: on }),
+  setEnforceSemanticDistance: (on) => set({ enforceSemanticDistance: on }),
+  setDistanceThreshold: (n2) => set({ distanceThreshold: n2 }),
+  setDraft: (draft) => set((s) => {
+    const prev = s.draft || emptyDraft();
+    const eq = (a, b) => {
+      const ak2 = Object.keys(a);
+      const bk2 = Object.keys(b);
+      if (ak2.length !== bk2.length) return false;
+      for (const k2 of ak2) if (a[k2] !== b[k2]) return false;
+      return true;
+    };
+    if (eq(prev.light, draft.light) && eq(prev.dark, draft.dark)) return s;
+    const nextHistory = [...s.history, prev];
+    const limited = nextHistory.length > 30 ? nextHistory.slice(nextHistory.length - 30) : nextHistory;
+    return { draft, history: limited, future: [] };
+  }),
+  regenDraft: () => {
+    const base = { light: {}, dark: {} };
+    set((s) => ({ draft: base, history: [...s.history, s.draft || emptyDraft()], future: [] }));
+  },
+  undo: () => set((s) => {
+    const prev = s.history[s.history.length - 1];
+    if (!prev) return s;
+    const history = s.history.slice(0, -1);
+    const future = [s.draft, ...s.future];
+    return { draft: prev, history, future };
+  }),
+  redo: () => set((s) => {
+    const next = s.future[0];
+    if (!next) return s;
+    const future = s.future.slice(1);
+    const history = [...s.history, s.draft];
+    return { draft: next, history, future };
+  }),
+  apply: async (toSandbox) => {
+    const { draft, mergeStrategy, tokenPrefix, prefixOnMerge, themes, confirmReplace } = get2();
+    if (!draft) return;
+    if (mergeStrategy === "mergeWithPrefix" && !prefixOnMerge.trim()) {
+      set({ error: "Préfixe requis pour mergeWithPrefix" });
+      return;
+    }
+    if (mergeStrategy === "replace" && !confirmReplace) {
+      set({ error: "Confirmation requise pour remplacement total (cliquer à nouveau Appliquer Direct)", confirmReplace: true });
+      return;
+    }
+    const palStore = usePaletteStore.getState();
+    const targetThemes = { light: themes.light ? draft.light : palStore.palettes.light, dark: themes.dark ? draft.dark : palStore.palettes.dark };
+    const merge = (base, incoming) => {
+      if (mergeStrategy === "replace") return { ...incoming };
+      if (mergeStrategy === "merge") return { ...base, ...incoming };
+      const withPrefix = Object.fromEntries(Object.entries(incoming).map(([k2, v2]) => [`${prefixOnMerge}${k2.charAt(0).toUpperCase()}${k2.slice(1)}`, v2]));
+      return { ...base, ...withPrefix };
+    };
+    const nextLight = merge(palStore.palettes.light, targetThemes.light);
+    const nextDark = merge(palStore.palettes.dark, targetThemes.dark);
+    if (toSandbox) {
+      const active = palStore.theme === "dark" ? nextDark : nextLight;
+      usePaletteStore.setState((s) => ({ sandbox: active, sandboxActive: true }));
+    } else {
+      usePaletteStore.setState((s) => ({ palettes: { light: nextLight, dark: nextDark }, palette: s.theme === "dark" ? nextDark : nextLight, history: [...s.history, s.palette], future: [], paletteVersion: (s.paletteVersion || 0) + 1 }));
+    }
+    set({ open: false, confirmReplace: false, error: null });
+  },
+  resetConfirmation: () => set({ confirmReplace: false, error: null }),
+  setContrastPolicy: (p2) => set({ contrastPolicy: p2 }),
+  setForegroundHeuristic: (f2) => set({ foregroundHeuristic: f2 }),
+  setOverlayOptions: (o) => set({ overlayOptions: o }),
+  addBackgroundLayer: (role) => set((s) => ({ backgroundLayers: [...s.backgroundLayers || [], { id: "layer_" + Date.now().toString(36), role: role || "bg" }] })),
+  updateBackgroundLayer: (id2, patch) => set((s) => ({ backgroundLayers: (s.backgroundLayers || []).map((l2) => l2.id === id2 ? { ...l2, ...patch } : l2) })),
+  removeBackgroundLayer: (id2) => set((s) => ({ backgroundLayers: (s.backgroundLayers || []).filter((l2) => l2.id !== id2) })),
+  toggleMinimalMode: () => set((s) => ({ minimalMode: !s.minimalMode })),
+  toggleExportPreset: (k2) => set((s) => ({ exportPresets: { css: s.exportPresets?.css ?? false, tailwind: s.exportPresets?.tailwind ?? false, json: s.exportPresets?.json ?? false, [k2]: !s.exportPresets?.[k2] } })),
+  toggleTokenGroup: (group) => set((s) => ({ tokenGroupSelections: { ...s.tokenGroupSelections || {}, [group]: !s.tokenGroupSelections?.[group] } })),
+  toggleSimulation: (k2) => set((s) => ({ cvdSimulations: { protanopia: s.cvdSimulations?.protanopia ?? false, deuteranopia: s.cvdSimulations?.deuteranopia ?? false, tritanopia: s.cvdSimulations?.tritanopia ?? false, [k2]: !s.cvdSimulations?.[k2] } })),
+  setAutosaveEnabled: (on) => set({ autosaveEnabled: on }),
+  hydrate: async () => {
+    try {
+      const raw = await window?.crimson?.storeGet?.("newProjectWizardState");
+      if (raw && typeof raw === "object") {
+        const allowed = ["profile", "keywords", "seeds", "mode", "saturation", "internalContrast", "neutralLevels", "includeSemantic", "variantScope", "minContrast", "highContrastMode", "themes", "tokenPrefix", "mergeStrategy", "prefixOnMerge", "generateNeutrals", "enforceSemanticDistance", "distanceThreshold", "contrastPolicy", "foregroundHeuristic", "overlayOptions", "backgroundLayers", "minimalMode", "exportPresets", "tokenGroupSelections", "cvdSimulations", "autosaveEnabled"];
+        const patch = {};
+        for (const k2 of allowed) if (k2 in raw) patch[k2] = raw[k2];
+        set(patch);
+      }
+    } catch (e2) {
+    }
+  },
+  getAdjustedParams: () => {
+    const s = get2();
+    let saturation = s.saturation;
+    let internalContrast = s.internalContrast;
+    const kw = s.keywords.toLowerCase().split(/[,\s]+/).filter(Boolean);
+    const apply = (deltaSat, deltaContrast) => {
+      saturation = Math.min(1, Math.max(0, saturation + deltaSat));
+      internalContrast = Math.min(1, Math.max(0, internalContrast + deltaContrast));
+    };
+    for (const k2 of kw) {
+      if (["warm", "chaleur", "chaud"].includes(k2)) apply(0.05, 0);
+      if (["cool", "froid", "cold"].includes(k2)) apply(-0.05, 0);
+      if (["vivid", "punchy", "vif"].includes(k2)) apply(0.1, 0.05);
+      if (["pastel", "soft", "doux"].includes(k2)) apply(-0.2, -0.05);
+      if (["minimal", "calm", "sobre"].includes(k2)) apply(-0.15, 0);
+      if (["highcontrast", "accessible"].includes(k2)) apply(0, 0.15);
+      if (["vibrant"].includes(k2)) apply(0.12, 0.02);
+    }
+    switch (s.profile) {
+      case "Pastel":
+        apply(-0.25, -0.05);
+        break;
+      case "Vivid":
+        apply(0.1, 0.05);
+        break;
+      case "Monochrome":
+        apply(-0.4, 0.1);
+        break;
+      case "Nord":
+        apply(-0.15, -0.02);
+        break;
+      case "Solarized":
+        apply(-0.05, 0);
+        break;
+      case "Corporate":
+        apply(-0.1, 0.05);
+        break;
+      case "Material":
+        apply(0.05, 0);
+        break;
+      case "Fluent":
+        apply(-0.05, 0);
+        break;
+    }
+    return { saturation, internalContrast };
+  },
+  generateRenameSuggestions: () => {
+    const s = get2();
+    const draft = s.draft;
+    if (!draft) return;
+    const light = draft.light;
+    const suggestions = [];
+    const mapping = {
+      primary: "brand",
+      secondary: "accent",
+      accent: "highlight",
+      success: "positive",
+      danger: "negative",
+      warning: "caution",
+      info: "notice"
+    };
+    for (const [from, to] of Object.entries(mapping)) {
+      if (light[from] && !light[to]) {
+        suggestions.push({ from, to, reason: `Alias proposé pour ${from}` });
+      }
+    }
+    Object.keys(light).forEach((k2) => {
+      if (/^primary[A-Z]/.test(k2)) return;
+      if (/^brand/.test(k2)) return;
+      if (k2.startsWith("primary") && !light["brand"]) {
+        suggestions.push({ from: "primary", to: "brand", reason: "Standardisation brand vs primary" });
+      }
+    });
+    set({ renameSuggestions: suggestions });
+  }
+}));
+let __wizard_unsub = null;
+if (typeof window !== "undefined") {
+  const attemptBind = () => {
+    const st = useNewProjectWizard.getState();
+    if (!__wizard_unsub) {
+      let timeout = null;
+      __wizard_unsub = useNewProjectWizard.subscribe((s, prev) => {
+        if (!s.autosaveEnabled) return;
+        const keys = ["profile", "keywords", "seeds", "mode", "saturation", "internalContrast", "neutralLevels", "includeSemantic", "variantScope", "minContrast", "highContrastMode", "themes", "tokenPrefix", "mergeStrategy", "prefixOnMerge", "generateNeutrals", "enforceSemanticDistance", "distanceThreshold", "contrastPolicy", "foregroundHeuristic", "overlayOptions", "backgroundLayers", "minimalMode", "exportPresets", "tokenGroupSelections", "cvdSimulations", "autosaveEnabled"];
+        const changed = keys.some((k2) => s[k2] !== prev[k2]);
+        if (!changed) return;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          try {
+            const payload = {};
+            for (const k2 of keys) payload[k2] = s[k2](window)?.crimson?.storeSet?.("newProjectWizardState", payload);
+          } catch {
+          }
+        }, 400);
+      });
+    }
+    st.hydrate?.();
+  };
+  setTimeout(attemptBind, 1e3);
+}
+const toHsl = converter("hsl");
+const toRgb = converter("rgb");
+const clamp01 = (n2) => Math.min(1, Math.max(0, n2));
+function adjustSaturation(hex2, sat) {
+  const p2 = parse(hex2);
+  if (!p2) return hex2;
+  const h = toHsl(p2);
+  h.s = clamp01((h.s ?? 0) * sat);
+  return formatHex(toRgb(h)) || hex2;
+}
+function deriveSeeds(params) {
+  const base = params.seeds[0] || "#990000";
+  const p2 = parse(base);
+  if (!p2) return [base];
+  const h = toHsl(p2);
+  const mk2 = (d) => {
+    const clone = { ...h };
+    clone.h = (((clone.h || 0) + d) % 360 + 360) % 360;
+    return formatHex(toRgb(clone)) || base;
+  };
+  switch (params.mode) {
+    case "dual":
+      return [base, mk2(180)];
+    case "triad":
+      return [base, mk2(120), mk2(-120)];
+    case "mono":
+      return [base];
+    default:
+      return [base];
+  }
+}
+function hexToRgbLocal(hex2) {
+  const v2 = /#?([0-9a-fA-F]{6})/.exec(hex2)?.[1] || "000000";
+  const n2 = parseInt(v2, 16);
+  return { r: n2 >> 16 & 255, g: n2 >> 8 & 255, b: n2 & 255 };
+}
+function srgbToLinear(c4) {
+  const x2 = c4 / 255;
+  return x2 <= 0.04045 ? x2 / 12.92 : Math.pow((x2 + 0.055) / 1.055, 2.4);
+}
+function linearToSrgb(x2) {
+  return x2 <= 31308e-7 ? x2 * 12.92 : 1.055 * Math.pow(x2, 1 / 2.4) - 0.055;
+}
+function toOklab(r2, g, b) {
+  const l2 = 0.4122214708 * r2 + 0.5363325363 * g + 0.0514459929 * b, m2 = 0.2119034982 * r2 + 0.6806995451 * g + 0.1073969566 * b, s = 0.0883024619 * r2 + 0.2817188376 * g + 0.6299787005 * b, l_ = Math.cbrt(l2), m_ = Math.cbrt(m2), s_ = Math.cbrt(s);
+  return { L: 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_, a: 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_, b: 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * b };
+}
+function fromOklab(L2, a, b) {
+  const l_ = L2 + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L2 - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L2 - 0.0894841775 * a - 1.291485548 * b;
+  const l2 = l_ * l_ * l_;
+  const m2 = m_ * m_ * m_;
+  const s = s_ * s_ * s_;
+  return { r: 4.0767416621 * l2 - 3.3077115913 * m2 + 0.2309699292 * s, g: -1.2684380046 * l2 + 2.6097574011 * m2 - 0.3413193965 * s, b: -0.0041960863 * l2 - 0.7034186147 * m2 + 1.707614701 * s };
+}
+function rgbToHexLocal(r2, g, b) {
+  const cl2 = (x2) => Math.min(255, Math.max(0, Math.round(x2 * 255)));
+  return "#" + [cl2(r2), cl2(g), cl2(b)].map((v2) => v2.toString(16).padStart(2, "0")).join("");
+}
+function mixOklab(aHex, bHex, t2) {
+  const a = hexToRgbLocal(aHex), b = hexToRgbLocal(bHex);
+  const la2 = toOklab(srgbToLinear(a.r), srgbToLinear(a.g), srgbToLinear(a.b));
+  const lb2 = toOklab(srgbToLinear(b.r), srgbToLinear(b.g), srgbToLinear(b.b));
+  const L2 = la2.L + (lb2.L - la2.L) * t2;
+  const A2 = la2.a + (lb2.a - la2.a) * t2;
+  const B2 = la2.b + (lb2.b - la2.b) * t2;
+  const { r: r2, g, b: bb2 } = fromOklab(L2, A2, B2);
+  return rgbToHexLocal(linearToSrgb(r2), linearToSrgb(g), linearToSrgb(bb2));
+}
+function buildNeutralScale(levels, baseBg, baseFg) {
+  const out = {};
+  for (let i = 0; i < levels; i++) {
+    const t2 = i / (levels - 1);
+    out[`neutral${(i + 1) * Math.round(1e3 / levels) / 10}`] = mixOklab(baseBg, baseFg, t2);
+  }
+  return out;
+}
+function ensureFg(background, minContrast) {
+  const white = ensureContrast("#ffffff", background, minContrast);
+  const black = ensureContrast("#111111", background, minContrast);
+  return contrastRatio(white, background) >= contrastRatio(black, background) ? white : black;
+}
+function variantsFor(baseName, baseHex, bg2, internalContrast) {
+  const L2 = luminance(baseHex);
+  const baseLight = L2 > 0.75 ? 0.04 : L2 > 0.6 ? 0.06 : L2 > 0.4 ? 0.08 : L2 > 0.25 ? 0.1 : 0.12;
+  const baseDark = L2 < 0.15 ? 0.08 : L2 < 0.25 ? 0.1 : L2 < 0.4 ? 0.12 : L2 < 0.6 ? 0.14 : 0.16;
+  const scaleLight = baseLight + 0.06 * internalContrast;
+  const scaleDark = baseDark + 0.06 * internalContrast;
+  const subtleBase = 0.1 + 0.06 * internalContrast;
+  const subtleHover = subtleBase + 0.06;
+  return {
+    [`${baseName}Hover`]: lighten(baseHex, scaleLight),
+    [`${baseName}Active`]: darken(baseHex, scaleDark),
+    [`${baseName}Subtle`]: mix(bg2, baseHex, subtleBase),
+    [`${baseName}SubtleHover`]: mix(bg2, baseHex, subtleHover)
+  };
+}
+function generatePalette(params) {
+  const warnings = [];
+  const notes = [];
+  const seeds = deriveSeeds(params).map((s) => adjustSaturation(s, params.saturation));
+  const primary = seeds[0];
+  const lightBase = "#f7f8fa";
+  let lightBg = lightBase;
+  if (params.backgroundLayers && params.backgroundLayers.length > 1) {
+    lightBg = params.backgroundLayers.reduce((acc, _l, i) => i === 0 ? acc : mix(acc, primary, 0.02 * i), lightBase);
+  }
+  const lightSurface = mix(lightBg, "#000000", 0.04);
+  const lightText = ensureFg(lightBg, params.minContrast);
+  const lightBorder = mix(lightBg, lightText, 0.18);
+  const darkBase = "#0b0b0c";
+  let darkBg = darkBase;
+  if (params.backgroundLayers && params.backgroundLayers.length > 1) {
+    darkBg = params.backgroundLayers.reduce((acc, _l, i) => i === 0 ? acc : mix(acc, primary, 0.03 * i), darkBase);
+  }
+  const darkSurface = mix(darkBg, "#ffffff", 0.06);
+  const darkText = ensureFg(darkBg, params.minContrast);
+  const darkBorder = mix(darkBg, darkText, 0.22);
+  const baseLight = { primary, background: lightBg, surface: lightSurface, text: lightText, border: lightBorder };
+  const baseDark = { primary, background: darkBg, surface: darkSurface, text: darkText, border: darkBorder };
+  if (params.includeSemantic) {
+    const p2 = parse(primary);
+    if (p2) {
+      const hsl = toHsl(p2);
+      const mk2 = (deg, satDelta = 0, lDelta = 0) => {
+        const clone = { ...hsl };
+        clone.h = (((clone.h || 0) + deg) % 360 + 360) % 360;
+        clone.s = clamp01((clone.s || 0) + satDelta);
+        clone.l = clamp01((clone.l || 0) + lDelta);
+        return formatHex(toRgb(clone)) || primary;
+      };
+      const semantic = {
+        success: mk2(120, 0, 0),
+        danger: mk2(300, 0, -0.05),
+        warning: mk2(45, 0.05, 0.05),
+        info: mk2(-60, 0, 0)
+      };
+      Object.assign(baseLight, semantic);
+      Object.assign(baseDark, semantic);
+    }
+  }
+  if (params.generateNeutrals) {
+    Object.assign(baseLight, buildNeutralScale(params.neutralLevels, lightBg, lightText));
+    Object.assign(baseDark, buildNeutralScale(params.neutralLevels, darkBg, darkText));
+  }
+  const applyFgs = (obj, bg22) => {
+    for (const k2 of Object.keys(obj)) {
+      if (!/(background|surface|border)/.test(k2)) {
+        let mc2 = params.minContrast;
+        if (params.contrastPolicy === "wcagAAA") mc2 = Math.max(mc2, 7);
+        else if (params.contrastPolicy === "wcagAA") mc2 = Math.max(mc2, 4.5);
+        const fg2 = ensureFg(obj[k2], mc2);
+        obj[`${k2}Fg`] = fg2;
+      }
+    }
+  };
+  applyFgs(baseLight);
+  applyFgs(baseDark);
+  params.variantScope.forEach((tok) => {
+    const exists = !!(baseLight[tok] || baseDark[tok]);
+    if (!exists) {
+      warnings.push(`Variant ignoré: token '${tok}' absent`);
+      return;
+    }
+    if (baseLight[tok]) Object.assign(baseLight, variantsFor(tok, baseLight[tok], lightBg, params.internalContrast));
+    if (baseDark[tok]) Object.assign(baseDark, variantsFor(tok, baseDark[tok], darkBg, params.internalContrast));
+  });
+  if (params.overlayOptions?.enable) {
+    const layer = (hex2) => mix(hex2, params.foregroundHeuristic === "luminance" ? "#ffffff" : primary, params.overlayOptions.opacity);
+    baseLight.overlay = layer(lightBg);
+    baseDark.overlay = layer(darkBg);
+  }
+  if (params.includeSemantic && params.enforceSemanticDistance) {
+    const semas = ["success", "danger", "warning", "info"];
+    const adjustHue = (hex2, degrees) => {
+      const p2 = parse(hex2);
+      if (!p2) return hex2;
+      const hsl = toHsl(p2);
+      hsl.h = (((hsl.h || 0) + degrees) % 360 + 360) % 360;
+      return formatHex(toRgb(hsl)) || hex2;
+    };
+    for (let i = 0; i < semas.length; i++) {
+      for (let j = i + 1; j < semas.length; j++) {
+        const a = semas[i], b = semas[j];
+        if (baseLight[a] && baseLight[b]) {
+          let d = deltaE(baseLight[a], baseLight[b]), attempts = 0;
+          while (d < params.distanceThreshold && attempts < 12) {
+            const step = 10 + attempts * 5;
+            baseLight[b] = adjustHue(baseLight[b], step);
+            baseDark[b] = baseLight[b];
+            d = deltaE(baseLight[a], baseLight[b]);
+            attempts++;
+          }
+          if (d < params.distanceThreshold) {
+            warnings.push(`Distance sémantique encore faible (${a}/${b}) ΔE=${d.toFixed(2)} après ajustements`);
+          } else if (attempts > 0) {
+            notes.push(`Ajustement ${b} (${attempts} itérations) pour ΔE=${d.toFixed(2)}`);
+          }
+        }
+      }
+    }
+  }
+  if (!params.internalContrast) {
+    notes.push("internalContrast=0 => variants proches de la couleur de base");
+  }
+  const candidates = ["primary", "success", "danger", "warning", "info"].filter((k2) => baseLight[k2]);
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const a = candidates[i], b = candidates[j];
+      const dE = deltaE(baseLight[a], baseLight[b]);
+      deltaE(baseDark[a] || baseLight[a], baseDark[b] || baseLight[b]);
+      const rgbDist = (() => {
+        const hexTo = (h) => {
+          const m2 = /#?([0-9a-fA-F]{6})/.exec(h)?.[1] || "000000";
+          const n2 = parseInt(m2, 16);
+          return { r: n2 >> 16 & 255, g: n2 >> 8 & 255, b: n2 & 255 };
+        };
+        const A2 = hexTo(baseLight[a]), B2 = hexTo(baseLight[b]);
+        const dr = A2.r - B2.r, dg2 = A2.g - B2.g, db2 = A2.b - B2.b;
+        return Math.sqrt(dr * dr + dg2 * dg2 + db2 * db2);
+      })();
+      if (dE < 5 || rgbDist < 24) {
+        warnings.push(`Collision chromatique ${a}/${b} ΔE=${dE.toFixed(2)} rgbDist=${Math.round(rgbDist)}`);
+      }
+    }
+  }
+  const metric = {};
+  const values = candidates.map((k2) => baseLight[k2]);
+  let sumDE = 0, pairs = 0;
+  for (let i = 0; i < values.length; i++) for (let j = i + 1; j < values.length; j++) {
+    sumDE += deltaE(values[i], values[j]);
+    pairs++;
+  }
+  if (pairs) metric.semanticDiversity = sumDE / pairs;
+  const bg2 = baseLight.background;
+  const getL = (hex2) => {
+    const v2 = /#?([0-9a-fA-F]{6})/.exec(hex2)?.[1] || "000000";
+    const n2 = parseInt(v2, 16);
+    const r2 = n2 >> 16 & 255, g = n2 >> 8 & 255, b = n2 & 255;
+    const srgb = (c4) => {
+      const x2 = c4 / 255;
+      return x2 <= 0.03928 ? x2 / 12.92 : Math.pow((x2 + 0.055) / 1.055, 2.4);
+    };
+    const R2 = srgb(r2), G2 = srgb(g), B2 = srgb(b);
+    return 0.2126 * R2 + 0.7152 * G2 + 0.0722 * B2;
+  };
+  const contrast = (a, b) => {
+    const L1 = getL(a), L2 = getL(b);
+    const [hi2, lo] = L1 > L2 ? [L1, L2] : [L2, L1];
+    return (hi2 + 0.05) / (lo + 0.05);
+  };
+  const fgTokens = Object.keys(baseLight).filter((k2) => k2.endsWith("Fg"));
+  if (fgTokens.length) {
+    metric.avgFgContrast = fgTokens.reduce((acc, k2) => acc + contrast(baseLight[k2], bg2), 0) / fgTokens.length;
+  }
+  if (metric.semanticDiversity && metric.avgFgContrast) {
+    metric.accessibilityScore = metric.avgFgContrast / params.minContrast * 0.6 + Math.min(1, metric.semanticDiversity / 20) * 0.4;
+  }
+  return { light: baseLight, dark: baseDark, meta: { warnings, notes, metrics: metric } };
+}
+function useFocusTrap(ref, active, onEscape) {
+  reactExports.useEffect(() => {
+    if (!active) return;
+    const root2 = ref.current;
+    if (!root2) return;
+    const selector = 'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])';
+    const getFocusable = () => Array.from(root2.querySelectorAll(selector)).filter((el2) => !el2.hasAttribute("disabled"));
+    const handleKey = (e2) => {
+      if (e2.key === "Escape") {
+        onEscape?.();
+      } else if (e2.key === "Tab") {
+        const list2 = getFocusable();
+        if (!list2.length) return;
+        const first = list2[0];
+        const last = list2[list2.length - 1];
+        if (e2.shiftKey && document.activeElement === first) {
+          e2.preventDefault();
+          last.focus();
+        } else if (!e2.shiftKey && document.activeElement === last) {
+          e2.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    const list = getFocusable();
+    if (list[0]) list[0].focus();
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [active, onEscape]);
+}
+const fr = {
+  wizard_title: "Nouveau Projet",
+  step_context: "Contexte",
+  step_context_sub: "Définissez le cadre et l'intention esthétique.",
+  step_seeds: "Seeds",
+  step_seeds_sub: "Choisissez les couleurs de départ qui structurent la palette.",
+  step_options: "Options",
+  step_options_sub: "Paramètres de génération & variantes.",
+  step_access: "Accessibilité",
+  step_access_sub: "Contrastes & objectifs de lisibilité.",
+  step_themes: "Thèmes",
+  step_themes_sub: "Activer les modes clair / sombre ou auto.",
+  step_naming: "Nom & Fusion",
+  step_naming_sub: "Stratégie d'intégration dans la palette actuelle.",
+  step_preview: "Prévisualisation",
+  step_preview_sub: "Aperçu des principaux tokens générés.",
+  step_summary: "Résumé",
+  step_summary_sub: "Diff et application finale.",
+  label_keywords: "Mots-clés style",
+  label_profile: "Profil (optionnel)",
+  beta: "beta",
+  add_seed: "+ seed",
+  remove_seed: "Retirer",
+  saturation: "Saturation",
+  internal_contrast: "Contraste interne",
+  neutral_levels: "Niveaux neutres",
+  include_semantic: "Sémantiques (success/danger...)",
+  generate_neutrals: "Générer neutrals",
+  variant_scope: "Variants scope",
+  min_contrast: "Contraste minimum",
+  enforce_semantic_distance: "Distances sémantiques (ΔE ≥ {threshold})",
+  token_prefix: "Préfixe tokens",
+  prefix_merge: "Prefix merge",
+  apply_sandbox: "Appliquer (Sandbox)",
+  apply_direct: "Appliquer Direct",
+  regenerate: "Régénérer",
+  close: "Fermer",
+  previous: "Précédent",
+  next: "Suivant",
+  undo: "Undo",
+  redo: "Redo",
+  added: "Ajoutés",
+  replaced: "Remplacés",
+  unchanged: "Inchangés",
+  show_diff: "Voir Diff",
+  hide_diff: "Masquer Diff",
+  warnings: "Warnings",
+  notes: "Notes",
+  generated_tokens: "Tokens générés",
+  confirm_replace_needed: "Confirmation requise pour remplacement total (cliquer à nouveau Appliquer Direct)",
+  prefix_required: "Préfixe requis pour mergeWithPrefix",
+  exports: "Exports",
+  mode_minimal: "Mode Minimal",
+  mode_complet: "Mode Complet",
+  metrics: "Métriques",
+  simulation: "Simulation",
+  generate_suggestions: "Générer suggestions",
+  suggestions: "Suggestions",
+  apply: "Appliquer",
+  no_selection: "Aucune sélection"
+};
+function t(key, vars) {
+  let str = fr[key];
+  if (vars) {
+    for (const [k2, v2] of Object.entries(vars)) str = str.replace(new RegExp(`{${k2}}`, "g"), String(v2));
+  }
+  return str;
+}
+const StepHeader = ({ title, subtitle }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-4", children: [
+  /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", children: title }),
+  subtitle && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs opacity-70 mt-1 leading-snug", children: subtitle })
+] });
+const StepContext = () => {
+  const w2 = useNewProjectWizard();
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_context"), subtitle: t("step_context_sub") }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "text-xs flex flex-col gap-1", title: "Les mots-clés ajustent saturation et contraste interne (heuristiques basiques).", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "flex items-center gap-2", children: t("label_keywords") }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: w2.keywords, onChange: (e2) => w2.setKeywords(e2.target.value), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs", placeholder: "ex: warm, fintech, minimal" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "text-xs flex flex-col gap-1", title: "Le profil applique des deltas sur saturation & contraste (Pastel, Vivid, Nord…).", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "flex items-center gap-2", children: t("label_profile") }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: w2.profile || "", onChange: (e2) => w2.setProfile(e2.target.value || null), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "(aucun)" }),
+          ["Material", "Fluent", "Nord", "Solarized", "Pastel", "Corporate", "Vivid", "Monochrome"].map((p2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: p2 }, p2))
+        ] })
+      ] })
+    ] })
+  ] });
+};
+const StepSeeds = () => {
+  const w2 = useNewProjectWizard();
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_seeds"), subtitle: t("step_seeds_sub") }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap gap-3 items-center", children: [
+      w2.seeds.map((s, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "color", value: s, onChange: (e2) => {
+          const arr = [...w2.seeds];
+          arr[i] = e2.target.value;
+          w2.setSeeds(arr);
+        }, className: "w-12 h-12 p-0 bg-transparent border border-neutral-700 rounded" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: s, onChange: (e2) => {
+          const arr = [...w2.seeds];
+          arr[i] = e2.target.value;
+          w2.setSeeds(arr);
+        }, className: "w-20 px-1 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-[10px] font-mono" })
+      ] }, i)),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.setSeeds([...w2.seeds, "#3366ff"]), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs", children: t("add_seed") }),
+      w2.seeds.length > 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.setSeeds(w2.seeds.slice(0, -1)), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs", children: t("remove_seed") })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-3 text-xs", children: ["single", "dual", "triad", "mono"].map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.setMode(m2), className: `px-2 py-1 rounded border text-xs ${w2.mode === m2 ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: m2 }, m2)) })
+  ] });
+};
+const StepOptions = () => {
+  const w2 = useNewProjectWizard();
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_options"), subtitle: t("step_options_sub") }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-4 text-xs", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1", children: [
+        t("saturation"),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "Saturation", type: "range", min: 0, max: 1, step: 0.01, value: w2.saturation, onChange: (e2) => w2.setSaturation(parseFloat(e2.target.value)), "aria-valuemin": 0, "aria-valuemax": 1, "aria-valuenow": w2.saturation }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { className: "w-14 px-1 py-0.5 text-right rounded bg-neutral-800 border border-neutral-700 text-[11px]", type: "number", min: 0, max: 1, step: 0.01, value: w2.saturation, onChange: (e2) => w2.setSaturation(parseFloat(e2.target.value) || 0) })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1", children: [
+        t("internal_contrast"),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "Contraste interne", type: "range", min: 0, max: 1, step: 0.01, value: w2.internalContrast, onChange: (e2) => w2.setInternalContrast(parseFloat(e2.target.value)), "aria-valuemin": 0, "aria-valuemax": 1, "aria-valuenow": w2.internalContrast }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { className: "w-14 px-1 py-0.5 text-right rounded bg-neutral-800 border border-neutral-700 text-[11px]", type: "number", min: 0, max: 1, step: 0.01, value: w2.internalContrast, onChange: (e2) => w2.setInternalContrast(parseFloat(e2.target.value) || 0) })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1 col-span-2", children: [
+        t("neutral_levels"),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: w2.neutralLevels, onChange: (e2) => w2.setNeutralLevels(Number(e2.target.value)), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700", children: [5, 7, 9, 12].map((n2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: n2, children: n2 }, n2)) })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 col-span-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: w2.includeSemantic, onChange: () => w2.toggleSemantic() }),
+        " ",
+        t("include_semantic")
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 col-span-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: w2.generateNeutrals, onChange: (e2) => w2.setGenerateNeutrals(e2.target.checked) }),
+        " ",
+        t("generate_neutrals")
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mb-1", children: t("variant_scope") }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: ["primary", "success", "danger", "warning", "info"].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleVariant(v2), className: `px-2 py-0.5 rounded border text-[11px] ${w2.variantScope.includes(v2) ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: v2 }, v2)) })
+      ] })
+    ] })
+  ] });
+};
+const StepAccessibility = () => {
+  const w2 = useNewProjectWizard();
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_access"), subtitle: t("step_access_sub") }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1 text-xs max-w-xs", children: [
+      t("min_contrast"),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "Contraste minimum", type: "range", min: 3, max: 10, step: 0.1, value: w2.minContrast, onChange: (e2) => w2.setMinContrast(parseFloat(e2.target.value)), "aria-valuemin": 3, "aria-valuemax": 10, "aria-valuenow": w2.minContrast }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { className: "w-16 px-1 py-0.5 text-right rounded bg-neutral-800 border border-neutral-700 text-[11px]", type: "number", min: 3, max: 10, step: 0.1, value: w2.minContrast, onChange: (e2) => w2.setMinContrast(parseFloat(e2.target.value) || 3) })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[10px] opacity-70", children: [
+        w2.minContrast.toFixed(2),
+        ":1"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 text-xs", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: w2.enforceSemanticDistance, onChange: (e2) => w2.setEnforceSemanticDistance(e2.target.checked) }),
+      " ",
+      t("enforce_semantic_distance", { threshold: w2.distanceThreshold })
+    ] })
+  ] });
+};
+const StepThemes = () => {
+  const w2 = useNewProjectWizard();
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_themes"), subtitle: t("step_themes_sub") }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-3 text-xs", children: ["light", "dark", "auto"].map((k2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleThemeFlag(k2), className: `px-3 py-1 rounded border ${w2.themes[k2] ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: k2 }, k2)) })
+  ] });
+};
+const StepNaming = () => {
+  const w2 = useNewProjectWizard();
+  usePaletteStore();
+  const hasSuggestions = (w2.renameSuggestions || []).length > 0;
+  const applySuggestion = (from, to) => {
+    if (!w2.draft) return;
+    const light = { ...w2.draft.light };
+    const dark = { ...w2.draft.dark };
+    if (light[from] && !light[to]) light[to] = light[from];
+    if (dark[from] && !dark[to]) dark[to] = dark[from];
+    w2.setDraft({ light, dark });
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_naming"), subtitle: t("step_naming_sub") }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1 text-xs max-w-xs", children: [
+      t("token_prefix"),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: w2.tokenPrefix, onChange: (e2) => w2.setTokenPrefix(e2.target.value), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-2 text-xs", children: ["replace", "merge", "mergeWithPrefix"].map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.setMergeStrategy(m2), className: `px-2 py-1 rounded border ${w2.mergeStrategy === m2 ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: m2 }, m2)) }),
+    w2.mergeStrategy === "mergeWithPrefix" && /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1 text-xs max-w-xs", children: [
+      t("prefix_merge"),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: w2.prefixOnMerge, onChange: (e2) => w2.setPrefixOnMerge(e2.target.value), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 flex items-center gap-2 text-xs", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.generateRenameSuggestions(), className: "px-2 py-1 rounded border border-neutral-700 bg-neutral-800 hover:border-neutral-500", children: "Générer suggestions" }),
+      hasSuggestions && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "opacity-60", children: [
+        w2.renameSuggestions.length,
+        " suggestion(s)"
+      ] })
+    ] }),
+    hasSuggestions && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-2 space-y-1 max-h-40 overflow-auto text-[11px] border border-neutral-800 rounded p-2 bg-neutral-900/40", children: w2.renameSuggestions.map((sug) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono", children: [
+        sug.from,
+        " → ",
+        sug.to
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "opacity-50 truncate", children: sug.reason }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => applySuggestion(sug.from, sug.to), className: "ml-auto px-1.5 py-0.5 rounded border border-neutral-700 hover:border-neutral-500", children: "Appliquer" })
+    ] }, sug.from + "=>" + sug.to)) })
+  ] });
+};
+const StepPreview = () => {
+  const w2 = useNewProjectWizard();
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_preview"), subtitle: t("step_preview_sub") }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-3 text-[10px]", children: Object.entries(w2.draft?.light || {}).slice(0, 30).map(([k2, v2]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 p-2 rounded border border-neutral-700", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-6 rounded border border-neutral-600", style: { background: v2 } }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate", title: k2, children: k2 }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-mono text-neutral-400 truncate", children: v2 })
+    ] }, k2)) })
+  ] });
+};
+const StepSummary = () => {
+  const w2 = useNewProjectWizard();
+  const warnings = w2.draft?.meta?.warnings || [];
+  const notes = w2.draft?.meta?.notes || [];
+  const metrics = w2.draft?.meta?.metrics;
+  const pal = usePaletteStore();
+  const currentLight = pal.palettes.light;
+  const draftLight = w2.draft?.light || {};
+  const added = [];
+  const replaced = [];
+  const unchanged = [];
+  Object.entries(draftLight).forEach(([k2, v2]) => {
+    if (!(k2 in currentLight)) added.push(k2);
+    else if (currentLight[k2] !== v2) replaced.push(k2);
+    else unchanged.push(k2);
+  });
+  const [showDiff, setShowDiff] = React$2.useState(false);
+  const bg2 = draftLight.background || "#ffffff";
+  const tokensForNearest = Object.entries(draftLight).filter(([k2]) => !k2.endsWith("Fg") && k2 !== "background");
+  const nearestCache = {};
+  function nearest(name, value) {
+    if (nearestCache[name]) return nearestCache[name];
+    let bestKey = "", best = Infinity;
+    for (const [k2, v2] of tokensForNearest) {
+      if (k2 === name) continue;
+      const d = deltaE(value, v2);
+      if (d < best) {
+        best = d;
+        bestKey = k2;
+      }
+    }
+    return nearestCache[name] = { key: bestKey, dE: best };
+  }
+  const renderList = (arr, labelKey, colorClass) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `font-semibold mb-1 ${colorClass}`, children: t(labelKey) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("ul", { className: "space-y-0.5", children: [
+      arr.slice(0, 60).map((k2) => {
+        const v2 = draftLight[k2];
+        if (!v2) return null;
+        const cr = contrastRatio(v2, bg2).toFixed(2), near = nearest(k2, v2);
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { className: "flex items-center gap-2 text-[10px] truncate", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-3 h-3 rounded border border-neutral-600", style: { background: v2 } }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", title: k2, children: k2 }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-mono opacity-70", children: v2 }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "opacity-60", children: [
+            "CR ",
+            cr
+          ] }),
+          near.key && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "opacity-50", children: [
+            "ΔE ",
+            near.dE.toFixed(1),
+            "→",
+            near.key
+          ] })
+        ] }, k2);
+      }),
+      arr.length > 60 && /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { className: "opacity-50", children: [
+        "… ",
+        arr.length - 60,
+        " autres"
+      ] })
+    ] })
+  ] });
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_summary"), subtitle: t("step_summary_sub") }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs opacity-80", children: [
+      t("generated_tokens"),
+      ": ",
+      Object.keys(w2.draft?.light || {}).length
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[11px] flex gap-2 flex-wrap", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setShowDiff((s) => !s), className: "px-2 py-0.5 rounded border border-neutral-700 bg-neutral-800 hover:border-neutral-500", children: showDiff ? t("hide_diff") : t("show_diff") }),
+      showDiff && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "px-1.5 py-0.5 rounded bg-green-700/30 border border-green-600/40", children: [
+          "Ajoutés ",
+          added.length
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "px-1.5 py-0.5 rounded bg-amber-700/30 border border-amber-600/40", children: [
+          "Remplacés ",
+          replaced.length
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "px-1.5 py-0.5 rounded bg-neutral-700/30 border border-neutral-600/40", children: [
+          "Inchangés ",
+          unchanged.length
+        ] })
+      ] })
+    ] }),
+    showDiff && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4 text-[10px] max-h-72 overflow-auto border border-neutral-800 rounded p-2 bg-neutral-900/40", children: [
+      added.length > 0 && renderList(added, "added", "text-green-300"),
+      replaced.length > 0 && renderList(replaced, "replaced", "text-amber-300"),
+      unchanged.length > 0 && renderList(unchanged, "unchanged", "text-neutral-300")
+    ] }),
+    (warnings.length > 0 || notes.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2 text-[11px]", children: [
+      warnings.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-red-700/60 bg-red-900/20 rounded p-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-red-300 mb-1", children: t("warnings") }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "list-disc pl-4 space-y-0.5", children: warnings.map((m2, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: m2 }, i)) })
+      ] }),
+      notes.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-amber-600/50 bg-amber-900/10 rounded p-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-amber-300 mb-1", children: t("notes") }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "list-disc pl-4 space-y-0.5", children: notes.map((m2, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: m2 }, i)) })
+      ] }),
+      metrics && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-neutral-700/60 bg-neutral-800/30 rounded p-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-neutral-200 mb-1", children: "Metrics" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "grid grid-cols-2 gap-1 text-[10px]", children: Object.entries(metrics).map(([k2, v2]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { className: "flex justify-between gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "opacity-70 truncate", children: k2 }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-mono", children: v2.toFixed(2) })
+        ] }, k2)) })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 flex-wrap text-[11px]", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mr-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "opacity-70", children: "Exports:" }),
+        ["css", "tailwind", "json"].map((k2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleExportPreset(k2), className: `px-2 py-0.5 rounded border ${w2.exportPresets?.[k2] ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: k2 }, k2))
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.apply(true), className: "px-3 py-1 rounded bg-neutral-800 border border-neutral-700 hover:border-neutral-500", children: t("apply_sandbox") }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.apply(false), className: "px-3 py-1 rounded bg-green-600 hover:bg-green-500 text-white", children: t("apply_direct") }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.regenDraft(), className: "px-3 py-1 rounded bg-neutral-800 border border-neutral-700 hover:border-neutral-500", children: t("regenerate") })
+    ] })
+  ] });
+};
+const StepSimulation = () => {
+  const w2 = useNewProjectWizard();
+  const modes2 = [
+    { key: "protanopia", label: "Protanopia" },
+    { key: "deuteranopia", label: "Deuteranopia" },
+    { key: "tritanopia", label: "Tritanopia" }
+  ];
+  const light = w2.draft?.light || {};
+  const sampleKeys = Object.keys(light).filter((k2) => !k2.endsWith("Fg")).slice(0, 24);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_preview"), subtitle: t("step_preview_sub") }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-3 flex-wrap text-xs", children: modes2.map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleSimulation(m2.key), className: `px-2 py-1 rounded border ${w2.cvdSimulations?.[m2.key] ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: m2.label }, m2.key)) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid md:grid-cols-3 gap-4 text-[10px]", children: modes2.filter((m2) => w2.cvdSimulations?.[m2.key]).map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-neutral-300", children: m2.label }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-2", children: sampleKeys.map((k2) => {
+        const orig = light[k2];
+        const sim = simulateCvd(orig, m2.key);
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 p-1 rounded border border-neutral-700", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-6 rounded", style: { background: sim } }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate", title: k2, children: k2 })
+        ] }, k2 + m2.key);
+      }) })
+    ] }, m2.key)) }),
+    !modes2.some((m2) => w2.cvdSimulations?.[m2.key]) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[11px] opacity-60", children: "Sélectionnez au moins un mode pour voir la simulation." })
+  ] });
+};
+function get(p2, key, fallback) {
+  return p2[key] || fallback;
+}
+const StepComponentsPreview = () => {
+  const w2 = useNewProjectWizard();
+  const pal = w2.draft?.light || {};
+  const bg2 = get(pal, "background", "#f7f7f7");
+  const surface = get(pal, "surface", bg2);
+  const text = get(pal, "text", "#111111");
+  const primary = get(pal, "primary", "#3366ff");
+  const primaryFg = get(pal, "primaryFg", "#ffffff");
+  const success = get(pal, "success", "#22c55e");
+  const danger = get(pal, "danger", "#ef4444");
+  const border = get(pal, "border", "#cccccc");
+  const info = get(pal, "info", "#3b82f6");
+  const radius = 4;
+  const cardStyle = { background: surface, border: `1px solid ${border}`, borderRadius: radius, padding: "12px", display: "flex", flexDirection: "column", gap: 8 };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: "Components", subtitle: "Aperçu micro UI avec tokens actuels (light)." }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid md:grid-cols-2 gap-4", style: { background: bg2, padding: 12, borderRadius: 8 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: cardStyle, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs font-semibold opacity-70", children: "Boutons" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 flex-wrap", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { style: { background: primary, color: primaryFg, borderRadius: radius, padding: "6px 12px", fontSize: 12, border: "none" }, children: "Primary" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { style: { background: success, color: get(pal, "successFg", "#052e16"), borderRadius: radius, padding: "6px 12px", fontSize: 12, border: "none" }, children: "Success" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { style: { background: danger, color: get(pal, "dangerFg", "#450a0a"), borderRadius: radius, padding: "6px 12px", fontSize: 12, border: "none" }, children: "Danger" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { style: { background: "transparent", color: primary, border: `1px solid ${primary}`, borderRadius: radius, padding: "6px 12px", fontSize: 12 }, children: "Outline" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: cardStyle, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs font-semibold opacity-70", children: "Alertes" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-2 text-[11px]", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { background: get(pal, "successSubtle", "#dcfce7"), color: get(pal, "successFg", "#052e16"), border: `1px solid ${success}`, borderRadius: radius, padding: "6px 8px" }, children: "Succès: opération complétée." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { background: get(pal, "dangerSubtle", "#fee2e2"), color: get(pal, "dangerFg", "#450a0a"), border: `1px solid ${danger}`, borderRadius: radius, padding: "6px 8px" }, children: "Erreur: action échouée." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { background: get(pal, "warningSubtle", "#fef9c3"), color: get(pal, "warningFg", "#442a03"), border: `1px solid ${get(pal, "warning", "#f59e0b")}`, borderRadius: radius, padding: "6px 8px" }, children: "Avertissement: vérifiez vos paramètres." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { background: get(pal, "infoSubtle", "#e0f2fe"), color: get(pal, "infoFg", "#082f49"), border: `1px solid ${info}`, borderRadius: radius, padding: "6px 8px" }, children: "Info: aperçu informatif." })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: cardStyle, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs font-semibold opacity-70", children: "Badges" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 flex-wrap text-[10px]", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { background: primary, color: primaryFg, padding: "3px 8px", borderRadius: 999 }, children: "Primary" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { background: success, color: get(pal, "successFg", "#052e16"), padding: "3px 8px", borderRadius: 999 }, children: "Success" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { background: danger, color: get(pal, "dangerFg", "#450a0a"), padding: "3px 8px", borderRadius: 999 }, children: "Danger" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { background: info, color: get(pal, "infoFg", "#082f49"), padding: "3px 8px", borderRadius: 999 }, children: "Info" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: cardStyle, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs font-semibold opacity-70", children: "Formulaire" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { opacity: 0.7 }, children: "Label" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { placeholder: "Saisir…", style: { background: surface, color: text, border: `1px solid ${border}`, padding: "6px 8px", borderRadius: radius, fontSize: 12 } })
+        ] })
+      ] })
+    ] })
+  ] });
+};
+const NewProjectWizard = () => {
+  const wizard = useNewProjectWizard();
+  const { step } = wizard;
+  const regenerate = () => {
+    const adj = wizard.getAdjustedParams ? wizard.getAdjustedParams() : { saturation: wizard.saturation, internalContrast: wizard.internalContrast };
+    const draft = generatePalette({
+      seeds: wizard.seeds,
+      mode: wizard.mode,
+      saturation: adj.saturation,
+      internalContrast: adj.internalContrast,
+      neutralLevels: wizard.neutralLevels,
+      includeSemantic: wizard.includeSemantic,
+      variantScope: wizard.variantScope,
+      minContrast: wizard.minContrast,
+      generateNeutrals: wizard.generateNeutrals,
+      enforceSemanticDistance: wizard.enforceSemanticDistance,
+      distanceThreshold: wizard.distanceThreshold,
+      baseKeywords: wizard.keywords,
+      profile: wizard.profile
+    });
+    wizard.setDraft(draft);
+  };
+  React$2.useEffect(() => {
+    if (!wizard.draft || Object.keys(wizard.draft.light).length === 0) regenerate();
+  }, []);
+  const stepRender = {
+    context: /* @__PURE__ */ jsxRuntimeExports.jsx(StepContext, {}),
+    seeds: /* @__PURE__ */ jsxRuntimeExports.jsx(StepSeeds, {}),
+    options: /* @__PURE__ */ jsxRuntimeExports.jsx(StepOptions, {}),
+    accessibility: /* @__PURE__ */ jsxRuntimeExports.jsx(StepAccessibility, {}),
+    themes: /* @__PURE__ */ jsxRuntimeExports.jsx(StepThemes, {}),
+    naming: /* @__PURE__ */ jsxRuntimeExports.jsx(StepNaming, {}),
+    semantics: /* @__PURE__ */ jsxRuntimeExports.jsx(StepOptions, {}),
+    simulation: /* @__PURE__ */ jsxRuntimeExports.jsx(StepSimulation, {}),
+    components: /* @__PURE__ */ jsxRuntimeExports.jsx(StepComponentsPreview, {}),
+    preview: /* @__PURE__ */ jsxRuntimeExports.jsx(StepPreview, {}),
+    summary: /* @__PURE__ */ jsxRuntimeExports.jsx(StepSummary, {})
+  };
+  const minimalHidden = /* @__PURE__ */ new Set(["accessibility", "simulation", "semantics"]);
+  const visibleSteps = wizard.minimalMode ? wizard.steps.filter((s) => !minimalHidden.has(s)) : wizard.steps;
+  const dialogRef = React$2.useRef(null);
+  useFocusTrap(dialogRef, wizard.open, () => wizard.closeWizard());
+  const warnings = wizard.draft?.meta?.warnings || [];
+  return wizard.open ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "fixed inset-0 z-50 flex", role: "dialog", "aria-modal": "true", "aria-label": t("wizard_title"), "aria-describedby": "wizard-steps", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-0 bg-black/60 backdrop-blur-sm", onClick: () => wizard.closeWizard() }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: dialogRef, className: "relative w-[880px] max-w-full mx-auto my-8 bg-neutral-950/90 border border-neutral-800 rounded-lg shadow-xl flex flex-col overflow-hidden", tabIndex: -1, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-3 border-b border-neutral-800 flex items-center gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "font-semibold text-sm", children: t("wizard_title") }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { id: "wizard-steps", className: "flex gap-1 flex-wrap text-[10px]", children: visibleSteps.map((s) => {
+          const current = wizard.step === s;
+          let badge2 = null;
+          if (warnings.length && (s === "accessibility" || s === "summary")) badge2 = String(warnings.length);
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              "aria-current": current ? "step" : void 0,
+              onClick: () => wizard.go(s),
+              className: `relative px-2 py-1 rounded border ${current ? "border-amber-500 text-amber-400" : "border-neutral-700 hover:border-neutral-500"}`,
+              children: [
+                s,
+                badge2 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "absolute -top-1 -right-1 bg-red-600 text-[9px] leading-none px-1 py-[2px] rounded-full text-white", children: badge2 })
+              ]
+            },
+            s
+          );
+        }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex gap-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.toggleMinimalMode(), className: "px-2 py-1 rounded text-[11px] bg-neutral-800 border border-neutral-700 hover:border-neutral-500", children: wizard.minimalMode ? "Mode Complet" : "Mode Minimal" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => regenerate(), className: "px-2 py-1 rounded text-[11px] bg-neutral-800 border border-neutral-700 hover:border-neutral-500", children: t("regenerate") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.closeWizard(), className: "px-2 py-1 rounded text-[11px] bg-neutral-800 border border-neutral-700 hover:border-neutral-500", children: t("close") })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 overflow-auto p-6 space-y-6 text-neutral-200 text-sm", children: stepRender[step] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-3 border-t border-neutral-800 flex items-center gap-2 text-xs bg-neutral-900/60", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.prev(), disabled: wizard.step === visibleSteps[0], className: "px-3 py-1 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-40", children: t("previous") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.next(), disabled: wizard.step === visibleSteps[visibleSteps.length - 1], className: "px-3 py-1 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-40", children: t("next") })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.undo(), disabled: !wizard.history.length, className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-30", children: t("undo") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.redo(), disabled: !wizard.future.length, className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-30", children: t("redo") })
+        ] })
+      ] })
+    ] })
+  ] }) : null;
+};
 const App = () => {
   const [tab, setTab] = reactExports.useState("palette");
   const theme = usePaletteStore((s) => s.theme);
@@ -11998,6 +13200,7 @@ const App = () => {
   const onboardingVisible = useUIStore((s) => s.onboardingVisible);
   const hydrateCompleted = useUIStore((s) => s.hydrateCompleted);
   const showOnboarding = useUIStore((s) => s.showOnboarding);
+  const openWizard = useNewProjectWizard((s) => s.openWizard);
   reactExports.useMemo(() => {
     const cls = theme === "dark" ? "dark" : "light";
     document.documentElement.classList.remove("dark", "light");
@@ -12116,79 +13319,13 @@ const App = () => {
     hydrateCompleted();
   }, [hydrateCompleted]);
   reactExports.useEffect(() => {
-    const base = "#990000";
-    const buildBase = (hex2) => {
-      const lighten2 = (h, a) => {
-        const n2 = h.replace("#", "");
-        const r2 = parseInt(n2.slice(0, 2), 16), g = parseInt(n2.slice(2, 4), 16), b = parseInt(n2.slice(4, 6), 16);
-        const lr = Math.round(r2 + (255 - r2) * a), lg2 = Math.round(g + (255 - g) * a), lb2 = Math.round(b + (255 - b) * a);
-        return "#" + [lr, lg2, lb2].map((v2) => v2.toString(16).padStart(2, "0")).join("");
-      };
-      const darken2 = (h, a) => {
-        const n2 = h.replace("#", "");
-        const r2 = parseInt(n2.slice(0, 2), 16), g = parseInt(n2.slice(2, 4), 16), b = parseInt(n2.slice(4, 6), 16);
-        const dr = Math.round(r2 * (1 - a)), dg2 = Math.round(g * (1 - a)), db2 = Math.round(b * (1 - a));
-        return "#" + [dr, dg2, db2].map((v2) => v2.toString(16).padStart(2, "0")).join("");
-      };
-      const bg2 = "#0b0b0c";
-      return {
-        primary: hex2,
-        primaryHover: lighten2(hex2, 0.08),
-        primaryActive: darken2(hex2, 0.15),
-        primarySubtle: lighten2(hex2, 0.9),
-        primarySubtleHover: lighten2(hex2, 0.82),
-        primaryFg: "#ffffff",
-        background: bg2,
-        surface: darken2(hex2, 0.7),
-        text: "#e5e7eb",
-        border: "#374151",
-        success: "#22c55e",
-        successHover: "#16a34a",
-        successActive: "#15803d",
-        successSubtle: "#dcfce7",
-        successSubtleHover: "#bbf7d0",
-        successFg: "#052e16",
-        danger: "#ef4444",
-        dangerHover: "#dc2626",
-        dangerActive: "#b91c1c",
-        dangerSubtle: "#fee2e2",
-        dangerSubtleHover: "#fecaca",
-        dangerFg: "#450a0a",
-        warning: "#f59e0b",
-        warningHover: "#d97706",
-        warningActive: "#b45309",
-        warningSubtle: "#fef9c3",
-        warningSubtleHover: "#fde68a",
-        warningFg: "#442a03",
-        info: "#3b82f6",
-        infoHover: "#2563eb",
-        infoActive: "#1d4ed8",
-        infoSubtle: "#e0f2fe",
-        infoSubtleHover: "#bae6fd",
-        infoFg: "#082f49"
-      };
-    };
     window.crimson.onNewProject?.(async () => {
-      await window.crimson.resetProject?.();
-      const p2 = buildBase(base);
-      usePaletteStore.setState((s) => ({
-        palettes: { light: p2, dark: p2 },
-        palette: p2,
-        theme: "dark",
-        history: [],
-        future: [],
-        sandbox: {},
-        sandboxActive: false,
-        paletteVersion: (s.paletteVersion || 0) + 1
-      }));
-      window.crimson.storeSet("palettes", { light: p2, dark: p2 });
-      window.crimson.storeSet("theme", "dark");
-      window.crimson.storeSet("themeMode", "dark");
+      openWizard();
       setTab("palette");
     });
-  }, []);
+  }, [openWizard]);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "border-b border-default bg-surface/60 backdrop-blur-md px-4 py-3 flex items-center justify-between", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "bg-surface/60 backdrop-blur-md px-4 py-3 flex items-center justify-between", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("h1", { className: "font-semibold text-xl title-gradient flex items-center gap-2", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: "/icon.png", alt: "Crimson", className: "w-6 h-6" }),
         "Crimson"
@@ -12196,7 +13333,7 @@ const App = () => {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
         sandboxActive && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs px-2 py-1 rounded bg-warningSubtle text-warningFg border border-warning/40 animate-pulse", title: "Sandbox actif – modifications non appliquées", children: "Sandbox" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn", title: "Aide / Revoir l'onboarding", onClick: () => showOnboarding(), children: "?" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-flex border border-default rounded overflow-hidden", role: "group", "aria-label": "Choix du thème", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-flex rounded overflow-hidden", role: "group", "aria-label": "Choix du thème", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
@@ -12227,7 +13364,7 @@ const App = () => {
         ] })
       ] })
     ] }),
-    !focusMode && /* @__PURE__ */ jsxRuntimeExports.jsx("nav", { className: "border-b border-default bg-surface/60 backdrop-blur-md px-2", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("ul", { className: "flex gap-1", children: [
+    !focusMode && /* @__PURE__ */ jsxRuntimeExports.jsx("nav", { className: "bg-surface/60 backdrop-blur-md px-2", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("ul", { className: "flex gap-1", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `btn underline-animated ${tab === "palette" ? "active" : ""}`, onClick: () => setTab("palette"), children: "Palette" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `btn underline-animated ${tab === "preview" ? "active" : ""}`, onClick: () => setTab("preview"), children: "Preview" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `btn underline-animated ${tab === "export" ? "active" : ""}`, onClick: () => setTab("export"), children: "Export" }) }),
@@ -12244,7 +13381,8 @@ const App = () => {
     onboardingVisible && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { id: "onboarding-root" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(OnboardingOverlay, {})
-    ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(NewProjectWizard, {})
   ] });
 };
 const root = createRoot(document.getElementById("root"));

@@ -10,6 +10,8 @@ import { useUIStore } from '../store/uiStore'
 import { hexToRgb } from '../core/palette'
 import { simulateCvd } from '../utils/colorBlindness'
 import { OnboardingOverlay } from './OnboardingOverlay'
+import { NewProjectWizard } from './NewProjectWizard'
+import { useNewProjectWizard } from '../store/newProjectWizardStore'
 
 type TabKey = 'palette' | 'preview' | 'export' | 'a11y' | 'project'
 
@@ -32,6 +34,7 @@ export const App: React.FC = () => {
   const onboardingVisible = useUIStore(s => s.onboardingVisible)
   const hydrateCompleted = useUIStore(s => s.hydrateCompleted)
   const showOnboarding = useUIStore(s => s.showOnboarding)
+  const openWizard = useNewProjectWizard(s => s.openWizard)
   // removed duplicate declarations (paletteVersion not needed locally for now)
 
   useMemo(() => {
@@ -157,66 +160,17 @@ export const App: React.FC = () => {
     hydrateCompleted()
   }, [hydrateCompleted])
 
-  // Listen for New Project command
+  // Listen for New Project command -> open wizard instead of immediate reset
   useEffect(() => {
-    const base = '#990000'
-    const buildBase = (hex: string) => {
-      // derive a minimal default palette around base (simple tints/shades)
-      const lighten = (h: string, a: number) => {
-        const n = h.replace('#','')
-        const r = parseInt(n.slice(0,2),16), g=parseInt(n.slice(2,4),16), b=parseInt(n.slice(4,6),16)
-        const lr = Math.round(r + (255-r)*a), lg=Math.round(g + (255-g)*a), lb=Math.round(b + (255-b)*a)
-        return '#' + [lr,lg,lb].map(v=>v.toString(16).padStart(2,'0')).join('')
-      }
-      const darken = (h: string, a: number) => {
-        const n = h.replace('#','')
-        const r = parseInt(n.slice(0,2),16), g=parseInt(n.slice(2,4),16), b=parseInt(n.slice(4,6),16)
-        const dr = Math.round(r*(1-a)), dg=Math.round(g*(1-a)), db=Math.round(b*(1-a))
-        return '#' + [dr,dg,db].map(v=>v.toString(16).padStart(2,'0')).join('')
-      }
-      const bg = '#0b0b0c'
-      return {
-        primary: hex,
-        primaryHover: lighten(hex,0.08),
-        primaryActive: darken(hex,0.15),
-        primarySubtle: lighten(hex,0.9),
-        primarySubtleHover: lighten(hex,0.82),
-        primaryFg: '#ffffff',
-        background: bg,
-        surface: darken(hex,0.7),
-        text: '#e5e7eb',
-        border: '#374151',
-        success: '#22c55e', successHover: '#16a34a', successActive: '#15803d', successSubtle: '#dcfce7', successSubtleHover:'#bbf7d0', successFg: '#052e16',
-        danger: '#ef4444', dangerHover:'#dc2626', dangerActive:'#b91c1c', dangerSubtle:'#fee2e2', dangerSubtleHover:'#fecaca', dangerFg:'#450a0a',
-        warning: '#f59e0b', warningHover:'#d97706', warningActive:'#b45309', warningSubtle:'#fef9c3', warningSubtleHover:'#fde68a', warningFg:'#442a03',
-        info: '#3b82f6', infoHover:'#2563eb', infoActive:'#1d4ed8', infoSubtle:'#e0f2fe', infoSubtleHover:'#bae6fd', infoFg:'#082f49'
-      }
-    }
     window.crimson.onNewProject?.(async () => {
-      await window.crimson.resetProject?.()
-      const p = buildBase(base)
-      // Reset both themes to same starting point (user can diverge later)
-      usePaletteStore.setState(s => ({
-        palettes: { light: p, dark: p },
-        palette: p,
-        theme: 'dark',
-        history: [],
-        future: [],
-        sandbox: {},
-        sandboxActive: false,
-        paletteVersion: (s.paletteVersion||0)+1
-      }))
-      // Persist
-      window.crimson.storeSet('palettes', { light: p, dark: p })
-      window.crimson.storeSet('theme', 'dark')
-      window.crimson.storeSet('themeMode', 'dark')
+      openWizard()
       setTab('palette')
     })
-  }, [])
+  }, [openWizard])
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b border-default bg-surface/60 backdrop-blur-md px-4 py-3 flex items-center justify-between">
+  <header className="bg-surface/60 backdrop-blur-md px-4 py-3 flex items-center justify-between">
         <h1 className="font-semibold text-xl title-gradient flex items-center gap-2">
           <img src="/icon.png" alt="Crimson" className="w-6 h-6" />
           Crimson
@@ -226,7 +180,7 @@ export const App: React.FC = () => {
             <span className="text-xs px-2 py-1 rounded bg-warningSubtle text-warningFg border border-warning/40 animate-pulse" title="Sandbox actif – modifications non appliquées">Sandbox</span>
           )}
           <button className="btn" title="Aide / Revoir l'onboarding" onClick={()=>showOnboarding()}>?</button>
-          <div className="inline-flex border border-default rounded overflow-hidden" role="group" aria-label="Choix du thème">
+          <div className="inline-flex rounded overflow-hidden" role="group" aria-label="Choix du thème">
             <button
               className={`btn ${themeMode==='light'?'btn-primary':''}`}
               aria-pressed={themeMode==='light'}
@@ -246,7 +200,7 @@ export const App: React.FC = () => {
         </div>
       </header>
       {!focusMode && (
-      <nav className="border-b border-default bg-surface/60 backdrop-blur-md px-2">
+  <nav className="bg-surface/60 backdrop-blur-md px-2">
         <ul className="flex gap-1">
           <li><button className={`btn underline-animated ${tab==='palette'?'active':''}`} onClick={() => setTab('palette')}>Palette</button></li>
           <li><button className={`btn underline-animated ${tab==='preview'?'active':''}`} onClick={() => setTab('preview')}>Preview</button></li>
@@ -271,6 +225,7 @@ export const App: React.FC = () => {
           <OnboardingOverlay />
         </>
       )}
+      <NewProjectWizard />
     </div>
   )
 }
