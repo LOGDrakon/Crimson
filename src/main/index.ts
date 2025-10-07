@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, nativeImage, nativeTheme, Menu } from 'electron'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs/promises'
@@ -8,16 +8,46 @@ const store = new Store({ name: 'crimson-store' })
 
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
 
-let mainWindow: any = null
+let mainWindow: BrowserWindow | null = null
+
+function resolveIcon() {
+  // Prefer platform-specific assets
+  const base = process.env.VITE_PUBLIC || process.cwd()
+  const candidates: string[] = []
+  if (process.platform === 'win32') {
+    candidates.push(join(base, 'assets', 'icon.ico'))
+    candidates.push(join(base, 'icon.ico'))
+    candidates.push(join(__dirname, 'icon.ico'))
+  }
+  // PNG fallbacks (Electron supports) – larger sizes first
+  candidates.push(join(base, 'assets', 'icon.png'))
+  candidates.push(join(base, 'icon.png'))
+  candidates.push(join(__dirname, '../renderer/icon.png'))
+
+  for (const p of candidates) {
+    try {
+      const img = nativeImage.createFromPath(p)
+      if (!img.isEmpty()) return img
+    } catch { /* ignore */ }
+  }
+  return undefined
+}
 
 async function createWindow() {
   const isDev = !app.isPackaged
+
+  const icon = resolveIcon()
+  if (process.platform === 'win32') {
+    // Set AppUserModelID to ensure taskbar icon grouping & display (aligned with electron-builder appId)
+    app.setAppUserModelId('com.crimson.app')
+  }
 
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     title: 'Crimson',
     backgroundColor: '#0b0b0c',
+    icon: icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
@@ -25,6 +55,30 @@ async function createWindow() {
       sandbox: true
     }
   })
+
+  // Application menu (add File > New Project)
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Nouveau Projet',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => {
+            // Send renderer a reset request; renderer will perform store reset
+            mainWindow?.webContents.send('app:new-project')
+          }
+        },
+        { type: 'separator' },
+        { role: 'quit', label: 'Quitter' }
+      ]
+    },
+    { role: 'editMenu' as any },
+    { role: 'viewMenu' as any },
+    { role: 'windowMenu' as any }
+  ]
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
 
   if (isDev && process.env['ELECTRON_RENDERER_URL']) {
     await mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -36,6 +90,11 @@ async function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null
+  })
+
+  // Notify renderer of initial system theme
+  mainWindow.webContents.once('did-finish-load', () => {
+    mainWindow?.webContents.send('system-theme', nativeTheme.shouldUseDarkColors ? 'dark' : 'light')
   })
 }
 
@@ -104,5 +163,26 @@ ipcMain.handle('store:get', (_evt, key: string) => {
 
 ipcMain.handle('store:set', (_evt, key: string, value: any) => {
   store.set(key, value)
+  return true
+})
+
+// Expose current system theme synchronously via invoke
+ipcMain.handle('system:theme', () => nativeTheme.shouldUseDarkColors ? 'dark' : 'light')
+
+// Push events on theme changes
+nativeTheme.on('updated', () => {
+  if (mainWindow) {
+    mainWindow.webContents.send('system-theme', nativeTheme.shouldUseDarkColors ? 'dark' : 'light')
+  }
+})
+
+// Provide a synchronous-ish handler to clear persisted store if renderer wants a full reset
+ipcMain.handle('app:resetProject', async () => {
+  // Retain only minimal keys if needed; here we wipe palette-related keys
+  try {
+    store.delete('palettes')
+    store.delete('theme')
+    store.delete('themeMode')
+  } catch { /* ignore */ }
   return true
 })

@@ -1,19 +1,23 @@
 import { create } from 'zustand'
-import { defaultPalette, type Palette, contrastRatio, hexToRgb } from '../core/palette'
+import { defaultPalette, type Palette, contrastRatio, hexToRgb, lighten, darken, mix, ensureContrast, rgbDistance, deltaE, luminance, safeHex } from '../core/palette'
 import { parse, formatHex, converter } from 'culori'
 
 type HarmonyMode = 'complementary' | 'analogous' | 'triadic' | 'tetradic' | 'monochrome'
 
 type State = {
   theme: 'light' | 'dark'
+  themeMode?: 'light' | 'dark' | 'auto'
   palettes: { light: Palette, dark: Palette }
   palette: Palette
+  /** Monotonic counter incremented whenever active palette context changes (used for memo invalidation) */
+  paletteVersion?: number
   groups: { id: string, name: string }[]
   tokenGroups: Record<string, string | null>
   imageDataUrl: string | null
   history: Palette[]
   future: Palette[]
   setTheme: (t: 'light' | 'dark') => void
+  setThemeMode?: (m: 'light' | 'dark' | 'auto', systemTheme?: 'light' | 'dark') => void
   setToken: (name: string, hex: string) => void
   addToken: (name?: string, hex?: string) => void
   removeToken: (name: string) => void
@@ -24,11 +28,14 @@ type State = {
   generateHarmony: (mode: HarmonyMode, base: string) => void
   addGroup: (name?: string) => string
   renameGroup: (id: string, name: string) => void
+  reorderGroups?: (ids: string[]) => void
   removeGroup: (id: string) => void
   assignTokenToGroup: (token: string, groupId: string | null) => void
   setImageDataUrl: (url: string | null) => void
   exportCSS: () => string
+  exportCSSThemes: () => string
   exportJSON: () => string
+  exportStyleDictionary: () => string
   tailwindConfig: () => any
   exportSCSS: () => string
   exportXAML: () => string
@@ -39,6 +46,35 @@ type State = {
   contrastToBackground: (hex: string) => number
   recommendFor: (token: string) => { label: string, value: string }[]
   applyRecommendation: (token: string, value?: string) => void
+  applyAutoContrast?: (token: string) => void
+  generateSemanticPack?: (pivot?: string) => void
+  redundancyReport?: () => { token: string, closest: string, deltaE: number }[]
+  alignTokenTo?: (source: string, target: string) => void
+  differentiateToken?: (token: string, reference: string) => void
+  generateVariantsFor: (base: string) => void
+  generateAllVariants: () => void
+  detectConflicts: () => { token: string, issue: string, a: string, b?: string, ratio?: number, deltaE?: number }[]
+  evaluationTarget: 'background' | 'surface' | 'base'
+  targetContrast: number
+  setEvaluationTarget: (t: 'background' | 'surface' | 'base') => void
+  setTargetContrast: (v: number) => void
+  // Focus mode (UI minimal editing for a specific group)
+  focusMode?: boolean
+  focusGroupId?: string | null
+  setFocusMode?: (on: boolean) => void
+  setFocusGroup?: (id: string | null) => void
+  cvdMode?: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia'
+  setCvdMode?: (m: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia') => void
+  // Sandbox (what-if) editing
+  sandboxActive?: boolean
+  sandbox?: Record<string,string>
+  setSandboxToken?: (name: string, hex: string) => void
+  setSandboxActive?: (on: boolean) => void
+  applySandbox?: () => void
+  discardSandbox?: () => void
+  effectivePalette?: () => Palette
+  applySnapshot?: (p: Palette) => void
+  newProject?: () => void
 }
 
 const toHex = (c: any) => formatHex(c) || '#000000'
@@ -49,19 +85,6 @@ const uniqueName = (existing: string[], base: string = 'custom') => {
     name = `${base}${i++}`
   }
   return name
-}
-const safeHex = (val?: string) => {
-  if (!val) return '#000000'
-  let v = val.trim()
-  if (!v.startsWith('#')) v = '#' + v
-  const short = /^#([0-9a-fA-F]{3})$/
-  const long = /^#([0-9a-fA-F]{6})$/
-  if (short.test(v)) {
-    const m = v.slice(1)
-    v = '#' + m.split('').map(ch => ch + ch).join('')
-  }
-  if (!long.test(v)) return '#000000'
-  return v.toLowerCase()
 }
 
 const rotateHue = (hex: string, deg: number) => {
@@ -86,8 +109,10 @@ const sanitizeXmlName = (s: string) => {
 
 export const usePaletteStore = create<State>((set, get) => ({
   theme: 'dark',
+  themeMode: 'dark',
   palettes: { light: defaultPalette, dark: defaultPalette },
   palette: defaultPalette,
+  paletteVersion: 0,
   groups: [
     { id: 'core', name: 'Système' },
     { id: 'brand', name: 'Marque' },
@@ -104,19 +129,27 @@ export const usePaletteStore = create<State>((set, get) => ({
   imageDataUrl: null,
   history: [],
   future: [],
-  setTheme: (t) => set((s) => ({ theme: t, palette: s.palettes[t] })),
+  setTheme: (t) => set((s) => ({ theme: t, palette: s.palettes[t], paletteVersion: (s.paletteVersion||0)+1 })),
+  setThemeMode: (m, systemTheme) => {
+    if (m === 'auto') {
+      const sys = systemTheme || (typeof window !== 'undefined' ? (document.documentElement.classList.contains('dark') ? 'dark' : 'light') : 'dark')
+      set((s) => ({ themeMode: 'auto', theme: sys, palette: s.palettes[sys], paletteVersion: (s.paletteVersion||0)+1 }))
+    } else {
+      set((s) => ({ themeMode: m, theme: m, palette: s.palettes[m], paletteVersion: (s.paletteVersion||0)+1 }))
+    }
+  },
   setToken: (name, hex) => set((s) => {
     const prev = s.palette
     const next = { ...prev, [name]: safeHex(hex) }
     const palettes = { ...s.palettes, [s.theme]: next }
-    return { palette: next, palettes, history: [...s.history, prev], future: [] }
+    return { palette: next, palettes, history: [...s.history, prev], future: [], paletteVersion: (s.paletteVersion||0)+1 }
   }),
   addToken: (name, hex) => set((s) => {
     const key = name && !s.palette[name] ? name : uniqueName(Object.keys(s.palette))
     const next = { ...s.palette, [key]: safeHex(hex || '#888888') }
     const palettes = { ...s.palettes, [s.theme]: next }
     const tokenGroups = { ...s.tokenGroups, [key]: s.tokenGroups[key] ?? 'custom' }
-    return { palette: next, palettes, tokenGroups, history: [...s.history, s.palette], future: [] }
+    return { palette: next, palettes, tokenGroups, history: [...s.history, s.palette], future: [], paletteVersion: (s.paletteVersion||0)+1 }
   }),
   removeToken: (name) => set((s) => {
     const next = { ...s.palette }
@@ -124,7 +157,7 @@ export const usePaletteStore = create<State>((set, get) => ({
     const tg = { ...s.tokenGroups }
     delete tg[name]
     const palettes = { ...s.palettes, [s.theme]: next }
-    return { palette: next, palettes, tokenGroups: tg, history: [...s.history, s.palette], future: [] }
+    return { palette: next, palettes, tokenGroups: tg, history: [...s.history, s.palette], future: [], paletteVersion: (s.paletteVersion||0)+1 }
   }),
   renameToken: (oldName, newName) => set((s) => {
     const trimmed = (newName || '').trim()
@@ -137,16 +170,16 @@ export const usePaletteStore = create<State>((set, get) => ({
       tokenGroups[trimmed] = tokenGroups[oldName] || null
       delete tokenGroups[oldName]
     }
-    return { palette: next, palettes, tokenGroups, history: [...s.history, s.palette], future: [] }
+    return { palette: next, palettes, tokenGroups, history: [...s.history, s.palette], future: [], paletteVersion: (s.paletteVersion||0)+1 }
   }),
-  setPalette: (p) => set((s) => ({ palette: p, history: [...s.history, s.palette], future: [] })),
+  setPalette: (p) => set((s) => ({ palette: p, history: [...s.history, s.palette], future: [], paletteVersion: (s.paletteVersion||0)+1 })),
   undo: () => set((s) => {
     const prev = s.history[s.history.length - 1]
     if (!prev) return s
     const history = s.history.slice(0, -1)
     const future = [s.palette, ...s.future]
     const palettes = { ...s.palettes, [s.theme]: prev }
-    return { palette: prev, palettes, history, future }
+    return { palette: prev, palettes, history, future, paletteVersion: (s.paletteVersion||0)+1 }
   }),
   redo: () => set((s) => {
     const next = s.future[0]
@@ -154,7 +187,7 @@ export const usePaletteStore = create<State>((set, get) => ({
     const future = s.future.slice(1)
     const history = [...s.history, s.palette]
     const palettes = { ...s.palettes, [s.theme]: next }
-    return { palette: next, palettes, history, future }
+    return { palette: next, palettes, history, future, paletteVersion: (s.paletteVersion||0)+1 }
   }),
   generateHarmony: (mode, base) => {
     const p = { ...get().palette }
@@ -182,7 +215,7 @@ export const usePaletteStore = create<State>((set, get) => ({
         p.accent = rotateHue(base, 0)
         break
     }
-    set((s) => ({ palette: p, palettes: { ...s.palettes, [s.theme]: p }, history: [...s.history, s.palette], future: [] }))
+    set((s) => ({ palette: p, palettes: { ...s.palettes, [s.theme]: p }, history: [...s.history, s.palette], future: [], paletteVersion: (s.paletteVersion||0)+1 }))
   },
   addGroup: (name) => {
     const id = uniqueName(get().groups.map(g => g.id), 'group')
@@ -191,6 +224,13 @@ export const usePaletteStore = create<State>((set, get) => ({
     return id
   },
   renameGroup: (id, name) => set((s) => ({ groups: s.groups.map(g => g.id === id ? { ...g, name } : g) })),
+  reorderGroups: (ids: string[]) => set((s) => {
+    const existing = new Map(s.groups.map(g => [g.id, g]))
+    const ordered = ids.map(id => existing.get(id)).filter(Boolean) as {id:string,name:string}[]
+    // Append any missing (safety) to avoid accidental loss
+    s.groups.forEach(g => { if (!ids.includes(g.id)) ordered.push(g) })
+    return { groups: ordered }
+  }),
   removeGroup: (id) => set((s) => {
     const groups = s.groups.filter(g => g.id !== id)
     const tokenGroups = Object.fromEntries(
@@ -205,7 +245,28 @@ export const usePaletteStore = create<State>((set, get) => ({
     const body = Object.entries(p).map(([k, v]) => `  --color-${k}: ${v};`).join('\n')
     return `:root{\n${body}\n}`
   },
+  exportCSSThemes: () => {
+    const { palettes } = get()
+    const formatBlock = (selector: string, pal: Palette) => {
+      const lines = Object.entries(pal).map(([k,v]) => `  --color-${k}: ${v};`).join('\n')
+      return `${selector} {\n${lines}\n}`
+    }
+    const light = formatBlock(':root', palettes.light)
+    const dark = formatBlock('.dark', palettes.dark)
+    return `${light}\n\n${dark}\n`
+  },
   exportJSON: () => JSON.stringify(get().palette, null, 2),
+  exportStyleDictionary: () => {
+    const { palettes } = get()
+    const wrap = (pal: Palette) => Object.fromEntries(Object.entries(pal).map(([k,v]) => [k, { value: v }]))
+    const out = {
+      color: {
+        light: wrap(palettes.light),
+        dark: wrap(palettes.dark)
+      }
+    }
+    return JSON.stringify(out, null, 2)
+  },
   tailwindConfig: () => {
     const p = get().palette
     return {
@@ -318,24 +379,425 @@ export const usePaletteStore = create<State>((set, get) => ({
     const b64 = btoa(bin)
     return b64
   },
-  contrastToBackground: (hex: string) => contrastRatio(hex, get().palette.background),
+  // Contrast helper now respects sandbox effective palette if active
+  contrastToBackground: (hex: string) => {
+    const ep = (get() as any).effectivePalette ? (get() as any).effectivePalette() : get().palette
+    return contrastRatio(hex, ep.background)
+  },
+  generateVariantsFor: (base) => {
+    const s = get()
+    const p = { ...s.palette }
+    const color = p[base]
+    if (!color) return
+    const ensure = (name: string, val: string) => { if (!p[name]) p[name] = val }
+    const bg = p.background || '#0b0b0c'
+    // Adaptive lighten/darken: scale amount based on luminance to keep perceptual step
+    const L = luminance(color)
+    const scaleLight = L > 0.75 ? 0.04 : L > 0.6 ? 0.06 : L > 0.4 ? 0.08 : L > 0.25 ? 0.1 : 0.12
+    const scaleDark = L < 0.15 ? 0.08 : L < 0.25 ? 0.1 : L < 0.4 ? 0.12 : L < 0.6 ? 0.14 : 0.16
+    const hover = lighten(color, scaleLight)
+    const active = darken(color, scaleDark)
+    // Perceptual LCH mix for subtle variants (fallback to sRGB mix if parsing fails)
+    const toLch = converter('lch')
+    const toRgb = converter('rgb')
+    const lchMix = (a: string, b: string, ratio: number) => {
+      const ca: any = parse(a) && toLch(parse(a)!)
+      const cb: any = parse(b) && toLch(parse(b)!)
+      if (!ca || !cb) return mix(a,b,ratio)
+      const r = Math.max(0, Math.min(1, ratio))
+      let h1 = ca.h ?? 0, h2 = cb.h ?? h1, dh = h2 - h1
+      if (dh > 180) dh -= 360
+      if (dh < -180) dh += 360
+      const out: any = { mode:'lch', l: ca.l + (cb.l - ca.l)*r, c: ca.c + (cb.c - ca.c)*r, h: (h1 + dh * r + 360) % 360 }
+      const rgb = toRgb(out)
+      return formatHex(rgb) || mix(a,b,ratio)
+    }
+    const subtle = lchMix(bg, color, 0.12)
+    const subtleHover = lchMix(bg, color, 0.18)
+    const fgWhite = ensureContrast('#ffffff', color, 4.5)
+    const fgBlack = ensureContrast('#111111', color, 4.5)
+    const fg = contrastRatio(fgWhite, color) >= contrastRatio(fgBlack, color) ? fgWhite : fgBlack
+    const prefix = base.charAt(0).toUpperCase() + base.slice(1)
+    ensure(`${base}Hover`, hover)
+    ensure(`${base}Active`, active)
+    ensure(`${base}Subtle`, subtle)
+    ensure(`${base}SubtleHover`, subtleHover)
+    ensure(`${base}Fg`, fg)
+    set((st) => ({ palette: p, palettes: { ...st.palettes, [st.theme]: p }, history: [...st.history, st.palette], future: [], paletteVersion: (st.paletteVersion||0)+1 }))
+  },
+  generateAllVariants: () => {
+    const bases = ['primary','success','danger','warning','info']
+    bases.forEach(b => get().generateVariantsFor(b))
+  },
+  detectConflicts: () => {
+    const p = (get() as any).effectivePalette ? (get() as any).effectivePalette() : get().palette
+    const entries = Object.entries(p) as [string,string][]
+    const out: { token: string, issue: string, a: string, b?: string, ratio?: number, deltaE?: number }[] = []
+    // Low contrast foreground tokens
+  for (const [name, hex] of entries) {
+      if (/Fg$/.test(name)) {
+        const base = name.replace(/Fg$/, '')
+        const baseHex = p[base]
+        if (baseHex) {
+          const ratio = contrastRatio(hex, baseHex)
+          if (ratio < 4.5) out.push({ token: name, issue: 'Contraste insuffisant', a: hex, b: baseHex, ratio: Math.round(ratio*100)/100 })
+        }
+      }
+    }
+    // Near duplicates among semantic bases
+  const semantic = entries.filter(([n]) => /^(primary|success|danger|warning|info)$/.test(n)) as [string,string][]
+    for (let i = 0; i < semantic.length; i++) {
+      for (let j = i+1; j < semantic.length; j++) {
+  const [ni, hi] = semantic[i]
+  const [nj, hj] = semantic[j]
+        const dist = rgbDistance(hi, hj)
+        const dE = deltaE(hi, hj)
+        // thresholds: raw RGB <24 OR perceptual deltaE < 5 (very close)
+        if (dist < 24 || dE < 5) out.push({ token: ni, issue: `Très proche de ${nj}`, a: hi, b: hj, deltaE: Math.round(dE*100)/100 })
+      }
+    }
+    return out
+  },
+  evaluationTarget: 'background',
+  targetContrast: 4.5,
+  setEvaluationTarget: (t) => set({ evaluationTarget: t }),
+  setTargetContrast: (v) => set({ targetContrast: Math.max(1, Math.min(21, v)) }),
+  focusMode: false,
+  focusGroupId: null,
+  setFocusMode: (on) => set({ focusMode: on }),
+  setFocusGroup: (id) => set({ focusGroupId: id }),
+  cvdMode: 'none',
+  setCvdMode: (m) => set({ cvdMode: m }),
+  sandboxActive: false,
+  sandbox: {},
+  setSandboxActive: (on) => set({ sandboxActive: on }),
+  setSandboxToken: (name, hex) => set((s) => {
+    if (!s.sandboxActive) return s // ignore if sandbox not active
+    const next = { ...(s.sandbox||{}) , [name]: safeHex(hex) }
+    return { sandbox: next, paletteVersion: (s.paletteVersion||0)+1 }
+  }),
+  applySandbox: () => set((s) => {
+    if (!s.sandboxActive || !s.sandbox || Object.keys(s.sandbox).length === 0) return s
+    const prev = s.palette
+    const merged: Palette = { ...s.palette, ...s.sandbox }
+    const palettes = { ...s.palettes, [s.theme]: merged }
+    return { palette: merged, palettes, history: [...s.history, prev], future: [], sandbox: {}, sandboxActive: false, paletteVersion: (s.paletteVersion||0)+1 }
+  }),
+  discardSandbox: () => set((s) => ({ sandbox: {}, sandboxActive: false, paletteVersion: (s.paletteVersion||0)+1 })),
+  effectivePalette: () => {
+    const s = get() as any
+    if (!s.sandboxActive) return s.palette
+    return { ...s.palette, ...s.sandbox }
+  },
+  applySnapshot: (p) => set((s) => {
+    // push current into history, clear future, replace palette & theme palette, reset sandbox
+    const prev = s.palette
+    const palettes = { ...s.palettes, [s.theme]: p }
+    return { palette: p, palettes, history: [...s.history, prev], future: [], sandbox: {}, sandboxActive: false, paletteVersion: (s.paletteVersion||0)+1 }
+  }),
+  // Reset project to a fresh Crimson base palette derived from #990000
+  newProject: () => {
+    const crimsonBase = '#990000'
+    const base = { ...defaultPalette }
+    // Override primary family
+    base.primary = crimsonBase
+    // Derive variants similarly to generateVariantsFor logic (avoid importing mix/ensureContrast again – already imported)
+    const L = luminance(crimsonBase)
+    const scaleLight = L > 0.75 ? 0.04 : L > 0.6 ? 0.06 : L > 0.4 ? 0.08 : L > 0.25 ? 0.1 : 0.12
+    const scaleDark = L < 0.15 ? 0.08 : L < 0.25 ? 0.1 : L < 0.4 ? 0.12 : L < 0.6 ? 0.14 : 0.16
+    base.primaryHover = lighten(crimsonBase, scaleLight)
+    base.primaryActive = darken(crimsonBase, scaleDark)
+    const bg = base.background || '#0b0b0c'
+    base.primarySubtle = mix(bg, crimsonBase, 0.12)
+    base.primarySubtleHover = mix(bg, crimsonBase, 0.18)
+    // Pick readable foreground
+    const fgWhite = ensureContrast('#ffffff', crimsonBase, 4.5)
+    const fgBlack = ensureContrast('#111111', crimsonBase, 4.5)
+    base.primaryFg = contrastRatio(fgWhite, crimsonBase) >= contrastRatio(fgBlack, crimsonBase) ? fgWhite : fgBlack
+    // Clear history/future and sandbox, keep current themeMode/theme selection
+    set((s) => ({
+      palettes: { light: base, dark: base },
+      palette: base,
+      history: [],
+      future: [],
+      sandbox: {},
+      sandboxActive: false,
+      paletteVersion: (s.paletteVersion||0)+1
+    }))
+  },
   recommendFor: (token) => {
-    const base = get().palette.primary || '#6366f1'
-    const recs: { label: string, value: string }[] = []
-    recs.push({ label: 'Complémentaire', value: rotateHue(base, 180) })
-    recs.push({ label: 'Analogue -30°', value: rotateHue(base, -30) })
-    recs.push({ label: 'Analogue +30°', value: rotateHue(base, 30) })
-    recs.push({ label: 'Triadique +120°', value: rotateHue(base, 120) })
-    recs.push({ label: 'Triadique -120°', value: rotateHue(base, -120) })
-    recs.push({ label: 'Tétradique +180°', value: rotateHue(base, 180) })
-    recs.push({ label: 'Monochrome', value: rotateHue(base, 0) })
-    const uniq = new Map<string, string>()
-    for (const r of recs) if (!uniq.has(r.value.toLowerCase())) uniq.set(r.value.toLowerCase(), r.label)
-    return Array.from(uniq.entries()).map(([value, label]) => ({ label, value }))
+    // Simple memoization cache keyed by token + paletteVersion.
+    // Stored on closure (module) scope via (usePaletteStore as any)._recCache
+    const storeAny = usePaletteStore as any
+    if (!storeAny._recCache) storeAny._recCache = new Map<string, any>()
+    const version = (get().paletteVersion||0)
+    const cacheKey = token + '|' + version + '|' + get().evaluationTarget + '|' + get().targetContrast
+    if (storeAny._recCache.has(cacheKey)) {
+      return storeAny._recCache.get(cacheKey)
+    }
+  const palette = (get() as any).effectivePalette ? (get() as any).effectivePalette() : get().palette
+    const bg = palette.background || '#0b0b0c'
+    const primary = palette.primary || '#6366f1'
+    const surface = palette.surface || '#1f2937'
+    const evaluationTarget = (get() as any).evaluationTarget as 'background' | 'surface' | 'base'
+    const targetContrast = (get() as any).targetContrast as number
+
+    // Perceptual LCH mix helper (culori based)
+    const toLch = converter('lch')
+    const toRgb = converter('rgb')
+    const lchMix = (a: string, b: string, ratio: number) => {
+      const ca: any = toLch(parse(a)!)
+      const cb: any = toLch(parse(b)!)
+      if (!ca || !cb) return mix(a, b, ratio) // fallback sRGB mix if parsing fails
+      const ra = Math.max(0, Math.min(1, ratio))
+      let h1 = ca.h ?? 0
+      let h2 = cb.h ?? h1
+      let dh = h2 - h1
+      if (dh > 180) dh -= 360
+      if (dh < -180) dh += 360
+      const out = {
+        mode: 'lch',
+        l: ca.l + (cb.l - ca.l) * ra,
+        c: ca.c + (cb.c - ca.c) * ra,
+        h: (h1 + dh * ra + 360) % 360
+      } as any
+      const rgb = toRgb(out)
+      return formatHex(rgb) || mix(a,b,ratio)
+    }
+
+  type Rec = { label: string, value: string, score: number, variant: string, reason: string, metrics: any }
+    const out: Rec[] = []
+
+    const push = (label: string, value: string, score: number, variantLabel: string, reason: string, metrics: any) => {
+      if (!value) return
+      const v = value.toLowerCase()
+      if (out.find(r => r.value.toLowerCase() === v)) return
+      out.push({ label, value, score, variant: variantLabel, reason, metrics })
+    }
+
+    const tokenLower = token.toLowerCase()
+    const baseMatch = tokenLower.match(/^(primary|success|danger|warning|info)/)
+    const variantMatch = tokenLower.match(/(hover|active|subtlehover|subtle|fg)$/)
+    const baseToken = baseMatch ? baseMatch[1] : 'primary'
+    const variant = variantMatch ? variantMatch[1] : 'base'
+    const baseColor = palette[baseToken] || primary
+
+    // Helpers for variant generation
+    const gen = {
+      hover: (c: string) => {
+        const L = luminance(c)
+        const scaleLight = L > 0.75 ? 0.04 : L > 0.6 ? 0.06 : L > 0.4 ? 0.08 : L > 0.25 ? 0.1 : 0.12
+        return lighten(c, scaleLight)
+      },
+      active: (c: string) => {
+        const L = luminance(c)
+        const scaleDark = L < 0.15 ? 0.08 : L < 0.25 ? 0.1 : L < 0.4 ? 0.12 : L < 0.6 ? 0.14 : 0.16
+        return darken(c, scaleDark)
+      },
+      subtle: (c: string) => mix(bg, c, 0.12),
+      subtlehover: (c: string) => mix(bg, c, 0.18),
+      fg: (c: string) => {
+        // pick white or near-black ensuring contrast
+        const white = ensureContrast('#ffffff', c, 4.5)
+        const black = ensureContrast('#111111', c, 4.5)
+        // prefer higher contrast
+        return contrastRatio(white, c) >= contrastRatio(black, c) ? white : black
+      }
+    }
+
+    const semanticBases: Record<string,string[]> = {
+      success: ['#22c55e', '#16a34a', '#15803d'],
+      danger: ['#ef4444', '#dc2626', '#b91c1c'],
+      warning: ['#f59e0b', '#d97706', '#b45309'],
+      info: ['#3b82f6', '#2563eb', '#1d4ed8'],
+      primary: [baseColor, lighten(baseColor, 0.1), darken(baseColor, 0.15)]
+    }
+
+    const candidates: string[] = []
+    const bases = semanticBases[baseToken] || [baseColor]
+    for (const b of bases) {
+      if (variant === 'base') candidates.push(b)
+      else if (variant === 'hover') candidates.push(gen.hover(b))
+      else if (variant === 'active') candidates.push(gen.active(b))
+      else if (variant === 'subtle') {
+        const standard = gen.subtle(b)
+        const perceptual = lchMix(bg, b, 0.12)
+        candidates.push(standard)
+        if (perceptual.toLowerCase() !== standard.toLowerCase()) candidates.push(perceptual)
+      }
+      else if (variant === 'subtlehover') {
+        const baseSubtle = gen.subtle(b)
+        const standard = gen.subtlehover(baseSubtle)
+        const perceptual = lchMix(bg, b, 0.18)
+        candidates.push(standard)
+        if (perceptual.toLowerCase() !== standard.toLowerCase()) candidates.push(perceptual)
+      }
+      else if (variant === 'fg') candidates.push(gen.fg(b))
+    }
+
+    // Additional context-aware suggestions
+    if (variant === 'base') {
+      // Provide accessible alt shades & harmonies
+      const altLight = lighten(baseColor, 0.15)
+      const altDark = darken(baseColor, 0.2)
+      candidates.push(altLight, altDark)
+    }
+
+    // Scoring: balance contrast (where relevant) + distinctness
+    const needHighContrast = /text|fg$|on/.test(tokenLower)
+    const evalBg = evaluationTarget === 'background' ? bg : evaluationTarget === 'surface' ? surface : baseColor
+
+    for (const c of candidates) {
+      const contrastBg = contrastRatio(c, bg)
+      const contrastSurface = contrastRatio(c, surface)
+      const contrastBase = contrastRatio(c, baseColor)
+      const contrastEval = contrastRatio(c, evalBg)
+      const ideal = needHighContrast ? targetContrast : 2.5
+      const contrastScore = 1 - Math.min(1, Math.abs(ideal - contrastEval) / ideal)
+      // Max OKLab deltaE between two sRGB colors is roughly ~0.4-0.6 for extremal differences; normalize using 0.5 window
+      const dE = deltaE(c, baseColor)
+      const distinctScore = Math.min(1, dE / 0.5)
+      const balance = needHighContrast ? (contrastScore * 0.7 + distinctScore * 0.3) : (contrastScore * 0.5 + distinctScore * 0.5)
+      const reason = needHighContrast
+        ? `Optimisé contraste ${contrastEval.toFixed(2)} vs ${evaluationTarget}`
+        : `Contraste ${contrastEval.toFixed(2)} / ΔE ${dE.toFixed(2)}`
+      const metrics = { contrastBg, contrastSurface, contrastBase, contrastEval, target: ideal, deltaE: Number(dE.toFixed(3)) }
+      push(c === baseColor ? 'Base' : c, c, balance, variant, reason, metrics)
+    }
+
+    // Fallback to original logic if nothing produced
+    if (!out.length) {
+      const simple = [
+        { label: 'Base', value: baseColor },
+        { label: 'Lighten', value: lighten(baseColor, 0.15) },
+        { label: 'Darken', value: darken(baseColor, 0.2) },
+        { label: 'Subtle', value: mix(bg, baseColor, 0.12) }
+      ]
+      return simple
+    }
+
+    // Sort by score descending
+    out.sort((a,b) => b.score - a.score)
+    // Map presentation labels
+    const labeled = out.map(r => ({
+      label: r.label,
+      value: r.value,
+      variant: r.variant,
+      reason: r.reason,
+      metrics: r.metrics,
+      score: Number(r.score.toFixed(3))
+    }))
+    const result = labeled.slice(0, 8)
+    storeAny._recCache.set(cacheKey, result)
+    return result
   },
   applyRecommendation: (token, value) => {
     const options = get().recommendFor(token)
     const chosen = value || (options[0]?.value)
     if (chosen) get().setToken(token, chosen)
+  },
+  applyAutoContrast: (token) => {
+    const s = get()
+    const p = s.palette
+    const target = s.targetContrast || 4.5
+    const value = p[token]
+    if (!value) return
+    let baseBg = p.background || '#0b0b0c'
+    // If token is a foreground variant (ends with Fg) use its base color as background for correction
+    if (/Fg$/.test(token)) {
+      const base = token.replace(/Fg$/,'')
+      if (p[base]) baseBg = p[base]
+    }
+    const corrected = ensureContrast(value, baseBg, target)
+    if (corrected.toLowerCase() !== value.toLowerCase()) {
+      s.setToken(token, corrected)
+    }
+  },
+  generateSemanticPack: (pivot) => {
+    const s = get()
+    const base = pivot && s.palette[pivot] ? s.palette[pivot] : s.palette.primary || '#6366f1'
+    // Derive hues by rotating in HSL space using existing helper rotateHue-like logic (reuse parse+converter here)
+    const toHsl = converter('hsl')
+    const toRgb = converter('rgb')
+    const src = parse(base)
+    if (!src) return
+    const hsl: any = toHsl(src)
+    const mk = (deg: number, satDelta = 0, lightDelta = 0) => {
+      const clone: any = { ...hsl }
+      clone.h = (((clone.h || 0) + deg) % 360 + 360) % 360
+      clone.s = Math.min(1, Math.max(0, (clone.s || 0) + satDelta))
+      clone.l = Math.min(1, Math.max(0, (clone.l || 0) + lightDelta))
+      return formatHex(toRgb(clone)) || base
+    }
+    const next = { ...s.palette }
+    // Basic assignments (avoid overwriting if user manually changed variants)
+    const assign = (k: string, v: string) => { if (!next[k]) next[k] = v }
+    assign('success', mk(120, 0, 0))
+    assign('danger', mk(300, 0, -0.05))
+    assign('warning', mk(45, 0.05, 0.05))
+    assign('info', mk(-60, 0, 0))
+    // Push palette
+    usePaletteStore.setState(st => ({
+      palette: next,
+      palettes: { ...st.palettes, [st.theme]: next },
+      history: [...st.history, st.palette],
+      future: [],
+      paletteVersion: (st.paletteVersion||0)+1
+    }))
+  },
+  // Redundancy report (palette similarity) uses effective palette
+  redundancyReport: () => {
+    const p = (get() as any).effectivePalette ? (get() as any).effectivePalette() : get().palette
+    const entries = Object.entries(p) as [string,string][]
+    const bases = entries.filter(([n]) => !/(Hover|Active|Subtle|SubtleHover|Fg)$/.test(n)) as [string,string][]
+    const out: { token: string, closest: string, deltaE: number }[] = []
+    for (let i = 0; i < bases.length; i++) {
+      let best: { name: string, d: number } | null = null
+      for (let j = 0; j < bases.length; j++) {
+        if (i === j) continue
+  const d = deltaE(bases[i][1], bases[j][1])
+        if (!best || d < best.d) best = { name: bases[j][0], d }
+      }
+      if (best && best.d < 2) out.push({ token: bases[i][0], closest: best.name, deltaE: Number(best.d.toFixed(3)) })
+    }
+    return out.sort((a,b)=>a.deltaE-b.deltaE)
+  },
+  // Align one token exactly to another (copy value)
+  alignTokenTo: (source, target) => {
+    const s = get()
+    const p = (get() as any).effectivePalette ? (get() as any).effectivePalette() : s.palette
+    if (!p[source] || !p[target]) return
+    if (p[source].toLowerCase() === p[target].toLowerCase()) return
+    s.setToken(source, p[target])
+  },
+  // Differentiate token from reference by adjusting hue/lightness until ΔE >= ~5
+  differentiateToken: (token, reference) => {
+    const s = get()
+    const p = (get() as any).effectivePalette ? (get() as any).effectivePalette() : s.palette
+    const base = p[token]
+    const ref = p[reference]
+    if (!base || !ref) return
+    if (deltaE(base, ref) >= 5) return
+    const parsed = parse(base)
+    if (!parsed) return
+    const toHsl = converter('hsl')
+    const toRgb = converter('rgb')
+    const hsl: any = toHsl(parsed)
+    let hash = 0; for (let i=0;i<token.length;i++) hash = (hash*31 + token.charCodeAt(i)) & 0xffffffff
+    const jitter = (hash % 11) - 5
+    hsl.h = (((hsl.h || 0) + 15 + jitter) % 360 + 360) % 360
+    const refParsed = parse(ref)
+    if (refParsed) {
+      const refHsl: any = toHsl(refParsed)
+      if (refHsl && typeof refHsl.l === 'number' && typeof hsl.l === 'number') {
+        if (refHsl.l >= hsl.l) hsl.l = Math.max(0, hsl.l - 0.12)
+        else hsl.l = Math.min(1, hsl.l + 0.12)
+      }
+    }
+    let candidate = formatHex(toRgb(hsl)) || base
+    if (deltaE(candidate, ref) < 5) {
+      candidate = luminance(candidate) > 0.5 ? darken(candidate, 0.2) : lighten(candidate, 0.2)
+    }
+    s.setToken(token, candidate)
   }
 }))

@@ -8,7 +8,17 @@ contextBridge.exposeInMainWorld('crimson', {
   openText: () => ipcRenderer.invoke('fs:openText') as Promise<{ filePath: string, content: string } | null>,
   exportMany: (files: { name: string, content: string, encoding?: 'utf8' | 'base64' }[]) => ipcRenderer.invoke('fs:exportMany', files) as Promise<string | null>,
   storeGet: (key: string) => ipcRenderer.invoke('store:get', key) as Promise<any>,
-  storeSet: (key: string, value: unknown) => ipcRenderer.invoke('store:set', key, value) as Promise<boolean>
+  storeSet: (key: string, value: unknown) => ipcRenderer.invoke('store:set', key, value) as Promise<boolean>,
+  systemTheme: () => ipcRenderer.invoke('system:theme') as Promise<'light' | 'dark'>,
+  onSystemTheme: (cb: (theme: 'light' | 'dark') => void) => {
+    ipcRenderer.removeAllListeners('system-theme')
+    ipcRenderer.on('system-theme', (_evt, val) => cb(val))
+  },
+  onNewProject: (cb: () => void) => {
+    ipcRenderer.removeAllListeners('app:new-project')
+    ipcRenderer.on('app:new-project', () => cb())
+  },
+  resetProject: () => ipcRenderer.invoke('app:resetProject') as Promise<boolean>
 });
 
 declare global {
@@ -20,6 +30,10 @@ declare global {
   exportMany: (files: { name: string, content: string, encoding?: 'utf8' | 'base64' }[]) => Promise<string | null>;
       storeGet: (key: string) => Promise<any>;
       storeSet: (key: string, value: unknown) => Promise<boolean>;
+      systemTheme: () => Promise<'light' | 'dark'>;
+      onSystemTheme: (cb: (theme: 'light' | 'dark') => void) => void;
+      onNewProject: (cb: () => void) => void;
+      resetProject: () => Promise<boolean>;
     }
   }
 }

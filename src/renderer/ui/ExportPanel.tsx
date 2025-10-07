@@ -4,12 +4,14 @@ import { usePaletteStore } from '../store/paletteStore'
 export const ExportPanel: React.FC = () => {
   const exportJSON = usePaletteStore((s) => s.exportJSON)
   const exportCSS = usePaletteStore((s) => s.exportCSS)
+  const exportCSSThemes = usePaletteStore((s) => (s as any).exportCSSThemes)
   const exportSCSS = usePaletteStore((s) => s.exportSCSS)
   const exportXAML = usePaletteStore((s) => s.exportXAML)
   const exportGIMP = usePaletteStore((s) => s.exportGIMP)
   const exportSwiftUI = usePaletteStore((s) => s.exportSwiftUI)
   const exportAndroidXML = usePaletteStore((s) => s.exportAndroidXML)
   const exportASE = usePaletteStore((s) => s.exportASE)
+  const exportStyleDictionary = usePaletteStore((s) => (s as any).exportStyleDictionary)
   const [selected, setSelected] = React.useState<Record<string, boolean>>({ css: true, json: true })
 
   const save = async (filename: string, content: string) => {
@@ -19,7 +21,8 @@ export const ExportPanel: React.FC = () => {
   const exportAll = async () => {
     const files: { name: string, content: string, encoding?: 'utf8' | 'base64' }[] = []
     if (selected.json) files.push({ name: 'palette.json', content: exportJSON() })
-    if (selected.css) files.push({ name: 'palette.css', content: exportCSS() })
+  if (selected.css) files.push({ name: 'palette.css', content: exportCSS() })
+  if (selected.cssThemes) files.push({ name: 'palette.themes.css', content: exportCSSThemes() })
     if (selected.scss) files.push({ name: 'palette.scss', content: exportSCSS() })
     if (selected.tailwind) files.push({ name: 'tailwind.json', content: JSON.stringify(usePaletteStore.getState().tailwindConfig(), null, 2) })
     if (selected.xaml) files.push({ name: 'palette.xaml', content: exportXAML() })
@@ -27,6 +30,7 @@ export const ExportPanel: React.FC = () => {
     if (selected.swiftui) files.push({ name: 'Palette.swift', content: exportSwiftUI() })
     if (selected.android) files.push({ name: 'colors.xml', content: exportAndroidXML() })
     if (selected.ase) files.push({ name: 'palette.ase', content: exportASE(), encoding: 'base64' })
+  if (selected.styleDictionary) files.push({ name: 'style-dictionary.json', content: exportStyleDictionary() })
     if (files.length === 0) return
     await window.crimson.exportMany(files)
   }
@@ -36,12 +40,14 @@ export const ExportPanel: React.FC = () => {
       <h2 className="text-lg font-semibold">Export</h2>
       <div className="card p-4">
       <div className="grid grid-cols-2 gap-2 max-w-xl">
-        {[
+        {[ 
           { key: 'xaml', label: 'XAML' },
-          { key: 'css', label: 'CSS Variables' },
+          { key: 'css', label: 'CSS Variables (actif)' },
+          { key: 'cssThemes', label: 'CSS Multi-thèmes' },
           { key: 'scss', label: 'SCSS' },
           { key: 'tailwind', label: 'Tailwind Config' },
           { key: 'json', label: 'JSON Tokens' },
+          { key: 'styleDictionary', label: 'Style Dictionary' },
           { key: 'ase', label: 'ASE (Adobe)' },
           { key: 'gimp', label: 'GIMP Palette' },
           { key: 'swiftui', label: 'SwiftUI' },

@@ -3000,9 +3000,9 @@ function commentKeyword$1({ gen, schemaEnv, schema, errSchemaPath, opts }) {
   }
 }
 function returnResults$1(it) {
-  const { gen, schemaEnv, validateName, ValidationError: ValidationError2, opts } = it;
+  const { gen, schemaEnv, validateName, ValidationError: ValidationError3, opts } = it;
   if (schemaEnv.$async) {
-    gen.if((0, codegen_1$T._)`${names_1$a.default.errors} === 0`, () => gen.return(names_1$a.default.data), () => gen.throw((0, codegen_1$T._)`new ${ValidationError2}(${names_1$a.default.vErrors})`));
+    gen.if((0, codegen_1$T._)`${names_1$a.default.errors} === 0`, () => gen.return(names_1$a.default.data), () => gen.throw((0, codegen_1$T._)`new ${ValidationError3}(${names_1$a.default.vErrors})`));
   } else {
     gen.assign((0, codegen_1$T._)`${validateName}.errors`, names_1$a.default.vErrors);
     if (opts.unevaluated)
@@ -3347,14 +3347,14 @@ function getData$1($data, { dataLevel, dataNames, dataPathArr }) {
 validate$1.getData = getData$1;
 var validation_error$1 = {};
 Object.defineProperty(validation_error$1, "__esModule", { value: true });
-class ValidationError extends Error {
+let ValidationError$1 = class ValidationError extends Error {
   constructor(errors2) {
     super("validation failed");
     this.errors = errors2;
     this.ajv = this.validation = true;
   }
-}
-validation_error$1.default = ValidationError;
+};
+validation_error$1.default = ValidationError$1;
 var ref_error$1 = {};
 Object.defineProperty(ref_error$1, "__esModule", { value: true });
 const resolve_1$4 = resolve$4;
@@ -9277,9 +9277,9 @@ function commentKeyword({ gen, schemaEnv, schema, errSchemaPath, opts }) {
   }
 }
 function returnResults(it) {
-  const { gen, schemaEnv, validateName, ValidationError: ValidationError2, opts } = it;
+  const { gen, schemaEnv, validateName, ValidationError: ValidationError3, opts } = it;
   if (schemaEnv.$async) {
-    gen.if((0, codegen_1$n._)`${names_1$3.default.errors} === 0`, () => gen.return(names_1$3.default.data), () => gen.throw((0, codegen_1$n._)`new ${ValidationError2}(${names_1$3.default.vErrors})`));
+    gen.if((0, codegen_1$n._)`${names_1$3.default.errors} === 0`, () => gen.return(names_1$3.default.data), () => gen.throw((0, codegen_1$n._)`new ${ValidationError3}(${names_1$3.default.vErrors})`));
   } else {
     gen.assign((0, codegen_1$n._)`${validateName}.errors`, names_1$3.default.vErrors);
     if (opts.unevaluated)
@@ -9623,21 +9623,15 @@ function getData($data, { dataLevel, dataNames, dataPathArr }) {
 }
 validate.getData = getData;
 var validation_error = {};
-var hasRequiredValidation_error;
-function requireValidation_error() {
-  if (hasRequiredValidation_error) return validation_error;
-  hasRequiredValidation_error = 1;
-  Object.defineProperty(validation_error, "__esModule", { value: true });
-  class ValidationError2 extends Error {
-    constructor(errors2) {
-      super("validation failed");
-      this.errors = errors2;
-      this.ajv = this.validation = true;
-    }
+Object.defineProperty(validation_error, "__esModule", { value: true });
+class ValidationError2 extends Error {
+  constructor(errors2) {
+    super("validation failed");
+    this.errors = errors2;
+    this.ajv = this.validation = true;
   }
-  validation_error.default = ValidationError2;
-  return validation_error;
 }
+validation_error.default = ValidationError2;
 var ref_error = {};
 Object.defineProperty(ref_error, "__esModule", { value: true });
 const resolve_1$1 = resolve$1;
@@ -9653,7 +9647,7 @@ var compile = {};
 Object.defineProperty(compile, "__esModule", { value: true });
 compile.resolveSchema = compile.getCompilingSchema = compile.resolveRef = compile.compileSchema = compile.SchemaEnv = void 0;
 const codegen_1$m = codegen;
-const validation_error_1 = requireValidation_error();
+const validation_error_1 = validation_error;
 const names_1$2 = names$1;
 const resolve_1 = resolve$1;
 const util_1$k = util;
@@ -9926,7 +9920,7 @@ uri$1.default = uri;
   Object.defineProperty(exports, "CodeGen", { enumerable: true, get: function() {
     return codegen_12.CodeGen;
   } });
-  const validation_error_12 = requireValidation_error();
+  const validation_error_12 = validation_error;
   const ref_error_12 = ref_error;
   const rules_12 = rules;
   const compile_12 = compile;
@@ -12379,7 +12373,7 @@ const require$$3 = {
   Object.defineProperty(exports, "CodeGen", { enumerable: true, get: function() {
     return codegen_12.CodeGen;
   } });
-  var validation_error_12 = requireValidation_error();
+  var validation_error_12 = validation_error;
   Object.defineProperty(exports, "ValidationError", { enumerable: true, get: function() {
     return validation_error_12.default;
   } });
@@ -14695,13 +14689,38 @@ class ElectronStore extends Conf {
 const store = new ElectronStore({ name: "crimson-store" });
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
 let mainWindow = null;
+function resolveIcon() {
+  const base = process.env.VITE_PUBLIC || process.cwd();
+  const candidates = [];
+  if (process.platform === "win32") {
+    candidates.push(path.join(base, "assets", "icon.ico"));
+    candidates.push(path.join(base, "icon.ico"));
+    candidates.push(path.join(__dirname, "icon.ico"));
+  }
+  candidates.push(path.join(base, "assets", "icon.png"));
+  candidates.push(path.join(base, "icon.png"));
+  candidates.push(path.join(__dirname, "../renderer/icon.png"));
+  for (const p of candidates) {
+    try {
+      const img = electron.nativeImage.createFromPath(p);
+      if (!img.isEmpty()) return img;
+    } catch {
+    }
+  }
+  return void 0;
+}
 async function createWindow() {
   const isDev = !electron.app.isPackaged;
+  const icon = resolveIcon();
+  if (process.platform === "win32") {
+    electron.app.setAppUserModelId("com.crimson.app");
+  }
   mainWindow = new electron.BrowserWindow({
     width: 1200,
     height: 800,
     title: "Crimson",
     backgroundColor: "#0b0b0c",
+    icon,
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
       nodeIntegration: false,
@@ -14709,6 +14728,27 @@ async function createWindow() {
       sandbox: true
     }
   });
+  const template = [
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "Nouveau Projet",
+          accelerator: "CmdOrCtrl+N",
+          click: () => {
+            mainWindow?.webContents.send("app:new-project");
+          }
+        },
+        { type: "separator" },
+        { role: "quit", label: "Quitter" }
+      ]
+    },
+    { role: "editMenu" },
+    { role: "viewMenu" },
+    { role: "windowMenu" }
+  ];
+  const menu = electron.Menu.buildFromTemplate(template);
+  electron.Menu.setApplicationMenu(menu);
   if (isDev && process.env["ELECTRON_RENDERER_URL"]) {
     await mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
     mainWindow.webContents.openDevTools({ mode: "detach" });
@@ -14718,6 +14758,9 @@ async function createWindow() {
   }
   mainWindow.on("closed", () => {
     mainWindow = null;
+  });
+  mainWindow.webContents.once("did-finish-load", () => {
+    mainWindow?.webContents.send("system-theme", electron.nativeTheme.shouldUseDarkColors ? "dark" : "light");
   });
 }
 electron.app.whenReady().then(createWindow);
@@ -14775,5 +14818,20 @@ electron.ipcMain.handle("store:get", (_evt, key) => {
 });
 electron.ipcMain.handle("store:set", (_evt, key, value) => {
   store.set(key, value);
+  return true;
+});
+electron.ipcMain.handle("system:theme", () => electron.nativeTheme.shouldUseDarkColors ? "dark" : "light");
+electron.nativeTheme.on("updated", () => {
+  if (mainWindow) {
+    mainWindow.webContents.send("system-theme", electron.nativeTheme.shouldUseDarkColors ? "dark" : "light");
+  }
+});
+electron.ipcMain.handle("app:resetProject", async () => {
+  try {
+    store.delete("palettes");
+    store.delete("theme");
+    store.delete("themeMode");
+  } catch {
+  }
   return true;
 });
