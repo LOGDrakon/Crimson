@@ -17,7 +17,9 @@ interface NewProjectWizardState {
   profile: string | null
   keywords: string
   seeds: string[] // initial color seeds
+  lockedSeeds?: boolean[] // parallel array to lock seed auto adjustments (primary, secondary, accent)
   mode: 'single' | 'dual' | 'triad' | 'mono'
+  harmonyMode?: 'auto' | 'complementary' | 'triad' | 'analogous'
   saturation: number
   internalContrast: number
   neutralLevels: 5 | 7 | 9 | 12
@@ -26,6 +28,10 @@ interface NewProjectWizardState {
   semanticsTokens: string[]
   extraTokens?: string[] // focusRing, selectionBg, selectionFg
   showGrayscaleSim?: boolean
+  autoRegenerate?: boolean
+  monochromeSemanticStrategy?: 'restrict' | 'remove' | 'keep'
+  userPresets?: Record<string,{ seeds:string[]; profile:string|null; saturation:number; internalContrast:number; neutralLevels:5|7|9|12; includeSemantic:boolean; variantScope:string[] }>
+  lastEffective?: { saturation:number; internalContrast:number; minContrast:number; contrastPolicy:string; neutralLevels:number }
   minContrast: number
   highContrastMode: boolean
   themes: { light: boolean; dark: boolean; auto: boolean }
@@ -64,6 +70,7 @@ interface NewProjectWizardState {
   setKeywords: (v: string) => void
   setProfile: (p: string | null) => void
   setMode: (m: NewProjectWizardState['mode']) => void
+  setHarmonyMode: (m: NonNullable<NewProjectWizardState['harmonyMode']>) => void
   setSaturation: (n: number) => void
   setInternalContrast: (n: number) => void
   setNeutralLevels: (n: 5|7|9|12) => void
@@ -71,6 +78,7 @@ interface NewProjectWizardState {
   toggleVariant: (v: string) => void
   setMinContrast: (n: number) => void
   toggleSemanticToken: (t: string) => void
+  toggleLockedSeed: (index: number) => void
   toggleExtraToken: (t: string) => void
   toggleThemeFlag: (k: keyof NewProjectWizardState['themes']) => void
   setTokenPrefix: (p: string) => void
@@ -102,6 +110,13 @@ interface NewProjectWizardState {
   generateRenameSuggestions: () => void
   applyPreset: (name: string) => void
   toggleShowGrayscale: () => void
+  toggleAutoRegenerate: () => void
+  setMonochromeSemanticStrategy: (s: 'restrict' | 'remove' | 'keep') => void
+  saveUserPreset: (name: string) => void
+  applyUserPreset: (name: string) => void
+  deleteUserPreset: (name: string) => void
+  setLastEffective: (e: NonNullable<NewProjectWizardState['lastEffective']>) => void
+  importUserPresets: (raw: string) => { imported: number; skipped: number; invalid: number } | null
 }
 
 const defaultSeeds = ['#990000']
@@ -109,21 +124,26 @@ const emptyDraft = (): DraftPalette => ({ light: {}, dark: {} })
 
 export const useNewProjectWizard = create<NewProjectWizardState>((set, get) => ({
   open: false,
-  step: 'context',
+  step: 'seeds',
   // Ordered wizard steps (no duplicates). 'context' covers style/profile inputs.
-  steps: ['context','seeds','options','accessibility','themes','naming','semantics','components','preview','summary'],
+  steps: ['seeds','context','options','accessibility','themes','naming','semantics','components','preview','summary'],
   profile: null,
   keywords: '',
   seeds: defaultSeeds,
+  lockedSeeds: [false,false,false],
   mode: 'single',
+  harmonyMode: 'auto',
   saturation: 0.85,
   internalContrast: 0.55,
   neutralLevels: 9,
   includeSemantic: true,
-  variantScope: ['primary','success','danger','warning','info'],
+  variantScope: ['primary','secondary','accent','success','danger','warning','info'],
   semanticsTokens: ['success','danger','warning','info'],
   extraTokens: ['focusRing','selectionBg','selectionFg'],
   showGrayscaleSim: true,
+  autoRegenerate: false,
+  monochromeSemanticStrategy: 'restrict',
+  userPresets: {},
   minContrast: 4.5,
   highContrastMode: false,
   themes: { light: true, dark: true, auto: false },
@@ -156,10 +176,12 @@ export const useNewProjectWizard = create<NewProjectWizardState>((set, get) => (
   next: () => set(s => { const i = s.steps.indexOf(s.step); return { step: s.steps[Math.min(s.steps.length-1, i+1)] } }),
   prev: () => set(s => { const i = s.steps.indexOf(s.step); return { step: s.steps[Math.max(0, i-1)] } }),
   go: (st: WizardStep) => set(s => s.steps.includes(st) ? { step: st } : {}),
-  setSeeds: (v) => set({ seeds: v.map(s => safeHex(s)) }),
+  // Accept partial clearing: empty string means 'no seed' so auto-derivation can occur. Only sanitize non-empty values.
+  setSeeds: (v) => set({ seeds: v.map(s => s ? safeHex(s) : '') }),
   setKeywords: (v) => set({ keywords: v }),
   setProfile: (p) => set({ profile: p }),
   setMode: (m) => set({ mode: m }),
+  setHarmonyMode: (m) => set({ harmonyMode: m }),
   setSaturation: (n) => set({ saturation: Math.min(1, Math.max(0, n)) }),
   setInternalContrast: (n) => set({ internalContrast: Math.min(1, Math.max(0, n)) }),
   setNeutralLevels: (n) => set({ neutralLevels: n }),
@@ -167,6 +189,7 @@ export const useNewProjectWizard = create<NewProjectWizardState>((set, get) => (
   toggleVariant: (v) => set(s => ({ variantScope: s.variantScope.includes(v) ? s.variantScope.filter(x=>x!==v) : [...s.variantScope, v] })),
   setMinContrast: (n) => set({ minContrast: Math.max(1, Math.min(21, n)) }),
   toggleSemanticToken: (t) => set(s => ({ semanticsTokens: s.semanticsTokens.includes(t) ? s.semanticsTokens.filter(x=>x!==t) : [...s.semanticsTokens, t] })),
+  toggleLockedSeed: (index) => set(s => ({ lockedSeeds: (s.lockedSeeds||[]).map((v,i)=> i===index ? !v : v) })),
   toggleExtraToken: (t) => set(s => ({ extraTokens: s.extraTokens?.includes(t) ? s.extraTokens.filter(x=>x!==t) : [...(s.extraTokens||[]), t] })),
   toggleThemeFlag: (k) => set(s => ({ themes: { ...s.themes, [k]: !s.themes[k] } })),
   setTokenPrefix: (p) => set({ tokenPrefix: p }),
@@ -256,7 +279,7 @@ export const useNewProjectWizard = create<NewProjectWizardState>((set, get) => (
     try {
   const raw = await (window as any)?.crimson?.storeGet?.('newProjectWizardState')
       if (raw && typeof raw === 'object') {
-        const allowed: (keyof NewProjectWizardState)[] = ['profile','keywords','seeds','mode','saturation','internalContrast','neutralLevels','includeSemantic','variantScope','minContrast','highContrastMode','themes','tokenPrefix','mergeStrategy','prefixOnMerge','generateNeutrals','enforceSemanticDistance','distanceThreshold','contrastPolicy','foregroundHeuristic','overlayOptions','backgroundLayers','minimalMode','exportPresets','tokenGroupSelections','cvdSimulations','autosaveEnabled']
+  const allowed: (keyof NewProjectWizardState)[] = ['profile','keywords','seeds','mode','harmonyMode','lockedSeeds','saturation','internalContrast','neutralLevels','includeSemantic','variantScope','minContrast','highContrastMode','themes','tokenPrefix','mergeStrategy','prefixOnMerge','generateNeutrals','enforceSemanticDistance','distanceThreshold','contrastPolicy','foregroundHeuristic','overlayOptions','backgroundLayers','minimalMode','exportPresets','tokenGroupSelections','cvdSimulations','autosaveEnabled','userPresets']
         const patch: Partial<NewProjectWizardState> = {}
         for (const k of allowed) if (k in raw) (patch as any)[k] = raw[k]
         set(patch)
@@ -337,16 +360,85 @@ export const useNewProjectWizard = create<NewProjectWizardState>((set, get) => (
     }
     const p = presets[name]
     if (!p) return
-    set(s => ({
-      seeds: p.seeds,
-      profile: p.profile ?? s.profile,
-      saturation: p.saturation ?? s.saturation,
-      internalContrast: p.internalContrast ?? s.internalContrast,
-      variantScope: p.variantScope ?? s.variantScope,
-      semanticsTokens: p.semanticsTokens ?? s.semanticsTokens
-    }))
+    set(s => {
+      const userSeeds = s.seeds || []
+      const defaultLike = userSeeds.length === 0 || (userSeeds.length === 1 && (userSeeds[0] === '#990000' || userSeeds[0] === p.seeds[0]))
+      // Non-destructive: only replace seeds if user hasn’t meaningfully customized.
+      const nextSeeds = defaultLike ? p.seeds : userSeeds
+      return {
+        seeds: nextSeeds,
+        profile: p.profile ?? s.profile,
+        saturation: p.saturation ?? s.saturation,
+        internalContrast: p.internalContrast ?? s.internalContrast,
+        variantScope: p.variantScope ?? s.variantScope,
+        semanticsTokens: p.semanticsTokens ?? s.semanticsTokens
+      }
+    })
   }
   ,toggleShowGrayscale: () => set(s => ({ showGrayscaleSim: !s.showGrayscaleSim }))
+  ,toggleAutoRegenerate: () => set(s => ({ autoRegenerate: !s.autoRegenerate }))
+  ,setMonochromeSemanticStrategy: (ms) => set({ monochromeSemanticStrategy: ms })
+  ,saveUserPreset: (name) => set(s => {
+    if (!name.trim()) return s
+    const preset = { seeds: s.seeds, profile: s.profile, saturation: s.saturation, internalContrast: s.internalContrast, neutralLevels: s.neutralLevels, includeSemantic: s.includeSemantic, variantScope: s.variantScope }
+    return { userPresets: { ...(s.userPresets||{}), [name.trim()]: preset } }
+  })
+  ,applyUserPreset: (name) => set(s => {
+    const p = s.userPresets?.[name]; if (!p) return s
+    return { seeds: p.seeds, profile: p.profile, saturation: p.saturation, internalContrast: p.internalContrast, neutralLevels: p.neutralLevels, includeSemantic: p.includeSemantic, variantScope: p.variantScope }
+  })
+  ,deleteUserPreset: (name) => set(s => {
+    if (!s.userPresets?.[name]) return s
+    const next = { ...(s.userPresets) }; delete next[name]
+    return { userPresets: next }
+  })
+  ,setLastEffective: (e) => set({ lastEffective: e })
+  ,importUserPresets: (raw) => {
+    try {
+      const s = get()
+      const existing = s.userPresets || {}
+      let parsed: any = JSON.parse(raw)
+      // Accept several shapes: direct mapping, {presets:{...}}, {userPresets:{...}}, array of {name,...}
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        if (parsed.presets && typeof parsed.presets === 'object') parsed = parsed.presets
+        else if (parsed.userPresets && typeof parsed.userPresets === 'object') parsed = parsed.userPresets
+      }
+      let mapping: Record<string, any> = {}
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (!item || typeof item !== 'object') continue
+            const { name, seeds, profile, saturation, internalContrast, neutralLevels, includeSemantic, variantScope } = item
+            if (!name || !Array.isArray(seeds)) continue
+            mapping[name] = { seeds, profile: profile ?? null, saturation, internalContrast, neutralLevels, includeSemantic, variantScope }
+        }
+      } else if (parsed && typeof parsed === 'object') {
+        mapping = parsed
+      }
+      let imported = 0, skipped = 0, invalid = 0
+      const next: Record<string, any> = { ...existing }
+      for (const [name, preset] of Object.entries(mapping)) {
+        if (!preset || typeof preset !== 'object') { invalid++; continue }
+        const { seeds, saturation, internalContrast, neutralLevels, includeSemantic, variantScope, profile } = preset as any
+        if (!Array.isArray(seeds) || seeds.length === 0) { invalid++; continue }
+        // De-dupe: skip existing names (no overwrite for now)
+        if (name in existing) { skipped++; continue }
+        next[name] = {
+          seeds: seeds.map(s=> safeHex(s)),
+          profile: (typeof profile === 'string' || profile === null)? profile: null,
+          saturation: typeof saturation === 'number'? saturation: s.saturation,
+          internalContrast: typeof internalContrast === 'number'? internalContrast: s.internalContrast,
+          neutralLevels: [5,7,9,12].includes(neutralLevels)? neutralLevels: s.neutralLevels,
+          includeSemantic: typeof includeSemantic === 'boolean'? includeSemantic: s.includeSemantic,
+          variantScope: Array.isArray(variantScope)? variantScope: s.variantScope
+        }
+        imported++
+      }
+      set({ userPresets: next })
+      return { imported, skipped, invalid }
+    } catch (e) {
+      return null
+    }
+  }
 }))
 
 // Autosave side-effect (outside create to avoid closure issues)
@@ -358,7 +450,7 @@ if (typeof window !== 'undefined') {
       let timeout: any = null
       __wizard_unsub = useNewProjectWizard.subscribe((s, prev) => {
         if (!s.autosaveEnabled) return
-        const keys: (keyof NewProjectWizardState)[] = ['profile','keywords','seeds','mode','saturation','internalContrast','neutralLevels','includeSemantic','variantScope','minContrast','highContrastMode','themes','tokenPrefix','mergeStrategy','prefixOnMerge','generateNeutrals','enforceSemanticDistance','distanceThreshold','contrastPolicy','foregroundHeuristic','overlayOptions','backgroundLayers','minimalMode','exportPresets','tokenGroupSelections','cvdSimulations','autosaveEnabled']
+  const keys: (keyof NewProjectWizardState)[] = ['profile','keywords','seeds','mode','harmonyMode','lockedSeeds','saturation','internalContrast','neutralLevels','includeSemantic','variantScope','minContrast','highContrastMode','themes','tokenPrefix','mergeStrategy','prefixOnMerge','generateNeutrals','enforceSemanticDistance','distanceThreshold','contrastPolicy','foregroundHeuristic','overlayOptions','backgroundLayers','minimalMode','exportPresets','tokenGroupSelections','cvdSimulations','autosaveEnabled','userPresets']
   const changed = keys.some(k => (s as any)[k] !== (prev as any)[k])
         if (!changed) return
         clearTimeout(timeout)

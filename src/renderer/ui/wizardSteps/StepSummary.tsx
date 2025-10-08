@@ -22,6 +22,11 @@ export const StepSummary: React.FC = () => {
     else unchanged.push(k)
   })
   const [showDiff, setShowDiff] = React.useState(false)
+  const [warningFilter, setWarningFilter] = React.useState<'all'|'collision'|'distance'|'variant'|'policy'|'accessible'>('all')
+  const filteredWarnings = warnings.filter((m:string)=> {
+    if (warningFilter==='all') return true
+    return m.startsWith(`[${warningFilter}]`)
+  })
   const bg = draftLight.background || '#ffffff'
   const tokensForNearest = Object.entries(draftLight).filter(([k])=>!k.endsWith('Fg')&&k!=='background')
   const nearestCache: Record<string,{key:string,dE:number}> = {}
@@ -62,6 +67,11 @@ export const StepSummary: React.FC = () => {
     <div className="space-y-4">
       <StepHeader title={t('step_summary')} subtitle={t('step_summary_sub')} />
       <div className="text-xs opacity-80">{t('generated_tokens')}: {Object.keys(w.draft?.light||{}).length}</div>
+      {w.profile==='Monochrome' && (
+        <div className="flex gap-2 text-[10px]">
+          <span className="px-2 py-0.5 rounded border border-neutral-700 bg-neutral-800/40">Monochrome: {w.monochromeSemanticStrategy}</span>
+        </div>
+      )}
       <div className="text-[11px] flex gap-2 flex-wrap">
         <button onClick={()=>setShowDiff(s=>!s)} className="px-2 py-0.5 rounded border border-neutral-700 bg-neutral-800 hover:border-neutral-500">{showDiff? t('hide_diff'): t('show_diff')}</button>
         {showDiff && (
@@ -81,9 +91,16 @@ export const StepSummary: React.FC = () => {
       )}
       {(warnings.length>0 || notes.length>0) && (
         <div className="space-y-2 text-[11px]">
-          {warnings.length>0 && <div className="border border-red-700/60 bg-red-900/20 rounded p-2">
-            <div className="font-semibold text-red-300 mb-1">{t('warnings')}</div>
-            <ul className="list-disc pl-4 space-y-0.5">{warnings.map((m:string,i:number)=><li key={i}>{m}</li>)}</ul>
+          {warnings.length>0 && <div className="border border-red-700/60 bg-red-900/20 rounded p-2 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="font-semibold text-red-300">{t('warnings')}</div>
+              <div className="flex flex-wrap gap-1 text-[10px]">
+                {['all','collision','distance','variant','policy','accessible'].map(f => (
+                  <button key={f} onClick={()=>setWarningFilter(f as any)} className={`px-1.5 py-0.5 rounded border ${warningFilter===f?'border-amber-500 text-amber-300':'border-neutral-600 hover:border-neutral-400'}`}>{f}</button>
+                ))}
+              </div>
+            </div>
+            <ul className="list-disc pl-4 space-y-0.5">{filteredWarnings.map((m:string,i:number)=><li key={i}>{m}</li>)}</ul>
           </div>}
           {notes.length>0 && <div className="border border-amber-600/50 bg-amber-900/10 rounded p-2">
             <div className="font-semibold text-amber-300 mb-1">{t('notes')}</div>

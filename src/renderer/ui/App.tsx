@@ -12,6 +12,7 @@ import { simulateCvd } from '../utils/colorBlindness'
 import { OnboardingOverlay } from './OnboardingOverlay'
 import { NewProjectWizard } from './NewProjectWizard'
 import { useNewProjectWizard } from '../store/newProjectWizardStore'
+import { t } from './i18n'
 
 type TabKey = 'palette' | 'preview' | 'export' | 'a11y' | 'project'
 
@@ -132,6 +133,13 @@ export const App: React.FC = () => {
         if (tab !== 'export') { e.preventDefault(); setTab('export') }
         return
       }
+      // New Project Wizard (Ctrl+N)
+      if (e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        openWizard();
+        setTab('palette');
+        return
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -179,6 +187,9 @@ export const App: React.FC = () => {
           {sandboxActive && (
             <span className="text-xs px-2 py-1 rounded bg-warningSubtle text-warningFg border border-warning/40 animate-pulse" title="Sandbox actif – modifications non appliquées">Sandbox</span>
           )}
+          <button className="btn btn-primary" onClick={() => { openWizard(); setTab('palette') }} title={t('new_project')}>
+            {t('new_project')}
+          </button>
           <button className="btn" title="Aide / Revoir l'onboarding" onClick={()=>showOnboarding()}>?</button>
           <div className="inline-flex rounded overflow-hidden" role="group" aria-label="Choix du thème">
             <button

@@ -11671,6 +11671,39 @@ function simulateSafe(hex2, mode) {
     return hex2;
   }
 }
+const rawSvg = `<?xml version="1.0" encoding="UTF-8"?>
+${`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" class="crimson-logo-svg" role="img" aria-label="Logo Crimson animé">
+  <g id="animated-crimson-wrapper">
+    <!-- Simplified static fallback shapes (first frame) -->
+    <circle cx="128" cy="128" r="120" fill="#112346" opacity="0.12" />
+  </g>
+  <!-- Full animated content injected below -->
+</svg>`}`;
+const AnimatedLogo = ({ size = 160, className = "", ariaLabel = "Logo Crimson animé", paused }) => {
+  const ref = React$2.useRef(null);
+  const [mounted, setMounted] = React$2.useState(false);
+  React$2.useEffect(() => {
+    setMounted(true);
+    if (!ref.current) return;
+    fetch(window.location.origin + "/assets/icon_animated.svg").then((r2) => r2.text()).then((txt) => {
+      if (!ref.current) return;
+      ref.current.innerHTML = txt;
+    }).catch(() => {
+      ref.current.innerHTML = rawSvg;
+    });
+  }, []);
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      className: `animated-logo relative select-none ${paused ? "animated-logo-paused" : ""} ${className}`,
+      style: { width: size, height: size },
+      "aria-label": ariaLabel,
+      role: "img",
+      children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref, className: "w-full h-full flex items-center justify-center", dangerouslySetInnerHTML: { __html: mounted ? "" : rawSvg } })
+    }
+  );
+};
 const ExportPanel = () => {
   const exportJSON = usePaletteStore((s) => s.exportJSON);
   const exportCSS = usePaletteStore((s) => s.exportCSS);
@@ -11683,6 +11716,8 @@ const ExportPanel = () => {
   const exportASE = usePaletteStore((s) => s.exportASE);
   const exportStyleDictionary = usePaletteStore((s) => s.exportStyleDictionary);
   const [selected, setSelected] = React$2.useState({ css: true, json: true });
+  const [exporting, setExporting] = React$2.useState(false);
+  const [exportResult, setExportResult] = React$2.useState(null);
   const exportAll = async () => {
     const files = [];
     if (selected.json) files.push({ name: "palette.json", content: exportJSON() });
@@ -11697,9 +11732,20 @@ const ExportPanel = () => {
     if (selected.ase) files.push({ name: "palette.ase", content: exportASE(), encoding: "base64" });
     if (selected.styleDictionary) files.push({ name: "style-dictionary.json", content: exportStyleDictionary() });
     if (files.length === 0) return;
-    await window.crimson.exportMany(files);
+    setExporting(true);
+    setExportResult(null);
+    try {
+      const dir = await window.crimson.exportMany(files);
+      if (dir) setExportResult(dir);
+    } finally {
+      setTimeout(() => setExporting(false), 350);
+    }
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4 relative", children: [
+    exporting && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-sm bg-neutral-900/70 animate-[fadeIn_0.2s_ease_forwards]", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatedLogo, { size: 96 }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-3 text-xs text-neutral-300", children: "Export en cours…" })
+    ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", children: "Export" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "card p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 gap-2 max-w-xl", children: [
       { key: "xaml", label: "XAML" },
@@ -11717,7 +11763,13 @@ const ExportPanel = () => {
       /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: !!selected[item.key], onChange: (e2) => setSelected((s) => ({ ...s, [item.key]: e2.target.checked })) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: item.label })
     ] }, item.key)) }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn btn-primary", onClick: exportAll, children: "Exporter la palette" }) })
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn btn-primary", disabled: exporting, onClick: exportAll, children: exporting ? "Export…" : "Exporter la palette" }),
+      exportResult && !exporting && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-neutral-400", children: [
+        "Fichiers enregistrés dans: ",
+        exportResult
+      ] })
+    ] })
   ] });
 };
 const Listbox = ({ options, value, onChange, placeholder = "Sélectionner…", className }) => {
@@ -11956,11 +12008,471 @@ const RedundancySection = ({ report, onAlign, onDifferentiate }) => {
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] text-muted", children: "Fusion ou différenciation recommandée pour épurer la palette." })
   ] });
 };
+const defaultSeeds = ["#990000"];
+const emptyDraft = () => ({ light: {}, dark: {} });
+const useNewProjectWizard = create((set, get2) => ({
+  open: false,
+  step: "seeds",
+  // Ordered wizard steps (no duplicates). 'context' covers style/profile inputs.
+  steps: ["seeds", "context", "options", "accessibility", "themes", "naming", "semantics", "components", "preview", "summary"],
+  profile: null,
+  keywords: "",
+  seeds: defaultSeeds,
+  lockedSeeds: [false, false, false],
+  mode: "single",
+  harmonyMode: "auto",
+  saturation: 0.85,
+  internalContrast: 0.55,
+  neutralLevels: 9,
+  includeSemantic: true,
+  variantScope: ["primary", "secondary", "accent", "success", "danger", "warning", "info"],
+  semanticsTokens: ["success", "danger", "warning", "info"],
+  extraTokens: ["focusRing", "selectionBg", "selectionFg"],
+  showGrayscaleSim: true,
+  autoRegenerate: false,
+  monochromeSemanticStrategy: "restrict",
+  userPresets: {},
+  minContrast: 4.5,
+  highContrastMode: false,
+  themes: { light: true, dark: true, auto: false },
+  tokenPrefix: "",
+  mergeStrategy: "replace",
+  prefixOnMerge: "new",
+  generateNeutrals: true,
+  enforceSemanticDistance: true,
+  distanceThreshold: 5,
+  contrastPolicy: "wcagAA",
+  foregroundHeuristic: "auto",
+  overlayOptions: { enable: false, opacity: 0.5, blend: "overlay" },
+  backgroundLayers: [{ id: "base", role: "base" }],
+  minimalMode: false,
+  exportPresets: { css: true, tailwind: false, json: true },
+  tokenGroupSelections: {},
+  cvdSimulations: { protanopia: false, deuteranopia: false, tritanopia: false },
+  autosaveEnabled: false,
+  styleKeywordsMapping: {},
+  draft: emptyDraft(),
+  applying: false,
+  error: null,
+  confirmReplace: false,
+  history: [],
+  future: [],
+  renameSuggestions: [],
+  openWizard: () => set({ open: true }),
+  closeWizard: () => set({ open: false }),
+  next: () => set((s) => {
+    const i = s.steps.indexOf(s.step);
+    return { step: s.steps[Math.min(s.steps.length - 1, i + 1)] };
+  }),
+  prev: () => set((s) => {
+    const i = s.steps.indexOf(s.step);
+    return { step: s.steps[Math.max(0, i - 1)] };
+  }),
+  go: (st) => set((s) => s.steps.includes(st) ? { step: st } : {}),
+  // Accept partial clearing: empty string means 'no seed' so auto-derivation can occur. Only sanitize non-empty values.
+  setSeeds: (v2) => set({ seeds: v2.map((s) => s ? safeHex$2(s) : "") }),
+  setKeywords: (v2) => set({ keywords: v2 }),
+  setProfile: (p2) => set({ profile: p2 }),
+  setMode: (m2) => set({ mode: m2 }),
+  setHarmonyMode: (m2) => set({ harmonyMode: m2 }),
+  setSaturation: (n2) => set({ saturation: Math.min(1, Math.max(0, n2)) }),
+  setInternalContrast: (n2) => set({ internalContrast: Math.min(1, Math.max(0, n2)) }),
+  setNeutralLevels: (n2) => set({ neutralLevels: n2 }),
+  toggleSemantic: () => set((s) => ({ includeSemantic: !s.includeSemantic })),
+  toggleVariant: (v2) => set((s) => ({ variantScope: s.variantScope.includes(v2) ? s.variantScope.filter((x2) => x2 !== v2) : [...s.variantScope, v2] })),
+  setMinContrast: (n2) => set({ minContrast: Math.max(1, Math.min(21, n2)) }),
+  toggleSemanticToken: (t2) => set((s) => ({ semanticsTokens: s.semanticsTokens.includes(t2) ? s.semanticsTokens.filter((x2) => x2 !== t2) : [...s.semanticsTokens, t2] })),
+  toggleLockedSeed: (index) => set((s) => ({ lockedSeeds: (s.lockedSeeds || []).map((v2, i) => i === index ? !v2 : v2) })),
+  toggleExtraToken: (t2) => set((s) => ({ extraTokens: s.extraTokens?.includes(t2) ? s.extraTokens.filter((x2) => x2 !== t2) : [...s.extraTokens || [], t2] })),
+  toggleThemeFlag: (k2) => set((s) => ({ themes: { ...s.themes, [k2]: !s.themes[k2] } })),
+  setTokenPrefix: (p2) => set({ tokenPrefix: p2 }),
+  setMergeStrategy: (m2) => set({ mergeStrategy: m2 }),
+  setPrefixOnMerge: (p2) => set({ prefixOnMerge: p2 }),
+  setGenerateNeutrals: (on) => set({ generateNeutrals: on }),
+  setEnforceSemanticDistance: (on) => set({ enforceSemanticDistance: on }),
+  setDistanceThreshold: (n2) => set({ distanceThreshold: n2 }),
+  setDraft: (draft) => set((s) => {
+    const prev = s.draft || emptyDraft();
+    const eq = (a, b) => {
+      const ak2 = Object.keys(a);
+      const bk2 = Object.keys(b);
+      if (ak2.length !== bk2.length) return false;
+      for (const k2 of ak2) if (a[k2] !== b[k2]) return false;
+      return true;
+    };
+    if (eq(prev.light, draft.light) && eq(prev.dark, draft.dark)) return s;
+    const nextHistory = [...s.history, prev];
+    const limited = nextHistory.length > 30 ? nextHistory.slice(nextHistory.length - 30) : nextHistory;
+    return { draft, history: limited, future: [] };
+  }),
+  regenDraft: () => {
+    const base = { light: {}, dark: {} };
+    set((s) => ({ draft: base, history: [...s.history, s.draft || emptyDraft()], future: [] }));
+  },
+  undo: () => set((s) => {
+    const prev = s.history[s.history.length - 1];
+    if (!prev) return s;
+    const history = s.history.slice(0, -1);
+    const future = [s.draft, ...s.future];
+    return { draft: prev, history, future };
+  }),
+  redo: () => set((s) => {
+    const next = s.future[0];
+    if (!next) return s;
+    const future = s.future.slice(1);
+    const history = [...s.history, s.draft];
+    return { draft: next, history, future };
+  }),
+  apply: async (toSandbox) => {
+    const { draft, mergeStrategy, tokenPrefix, prefixOnMerge, themes, confirmReplace } = get2();
+    if (!draft) return;
+    if (mergeStrategy === "mergeWithPrefix" && !prefixOnMerge.trim()) {
+      set({ error: "Préfixe requis pour mergeWithPrefix" });
+      return;
+    }
+    if (mergeStrategy === "replace" && !confirmReplace) {
+      set({ error: "Confirmation requise pour remplacement total (cliquer à nouveau Appliquer Direct)", confirmReplace: true });
+      return;
+    }
+    const palStore = usePaletteStore.getState();
+    const targetThemes = { light: themes.light ? draft.light : palStore.palettes.light, dark: themes.dark ? draft.dark : palStore.palettes.dark };
+    const merge = (base, incoming) => {
+      if (mergeStrategy === "replace") return { ...incoming };
+      if (mergeStrategy === "merge") return { ...base, ...incoming };
+      const withPrefix = Object.fromEntries(Object.entries(incoming).map(([k2, v2]) => [`${prefixOnMerge}${k2.charAt(0).toUpperCase()}${k2.slice(1)}`, v2]));
+      return { ...base, ...withPrefix };
+    };
+    const nextLight = merge(palStore.palettes.light, targetThemes.light);
+    const nextDark = merge(palStore.palettes.dark, targetThemes.dark);
+    if (toSandbox) {
+      const active = palStore.theme === "dark" ? nextDark : nextLight;
+      usePaletteStore.setState((s) => ({ sandbox: active, sandboxActive: true }));
+    } else {
+      usePaletteStore.setState((s) => ({ palettes: { light: nextLight, dark: nextDark }, palette: s.theme === "dark" ? nextDark : nextLight, history: [...s.history, s.palette], future: [], paletteVersion: (s.paletteVersion || 0) + 1 }));
+    }
+    set({ open: false, confirmReplace: false, error: null });
+  },
+  resetConfirmation: () => set({ confirmReplace: false, error: null }),
+  setContrastPolicy: (p2) => set({ contrastPolicy: p2 }),
+  setForegroundHeuristic: (f2) => set({ foregroundHeuristic: f2 }),
+  setOverlayOptions: (o) => set({ overlayOptions: o }),
+  addBackgroundLayer: (role) => set((s) => ({ backgroundLayers: [...s.backgroundLayers || [], { id: "layer_" + Date.now().toString(36), role: role || "bg" }] })),
+  updateBackgroundLayer: (id2, patch) => set((s) => ({ backgroundLayers: (s.backgroundLayers || []).map((l2) => l2.id === id2 ? { ...l2, ...patch } : l2) })),
+  removeBackgroundLayer: (id2) => set((s) => ({ backgroundLayers: (s.backgroundLayers || []).filter((l2) => l2.id !== id2) })),
+  toggleMinimalMode: () => set((s) => ({ minimalMode: !s.minimalMode })),
+  toggleExportPreset: (k2) => set((s) => ({ exportPresets: { css: s.exportPresets?.css ?? false, tailwind: s.exportPresets?.tailwind ?? false, json: s.exportPresets?.json ?? false, [k2]: !s.exportPresets?.[k2] } })),
+  toggleTokenGroup: (group) => set((s) => ({ tokenGroupSelections: { ...s.tokenGroupSelections || {}, [group]: !s.tokenGroupSelections?.[group] } })),
+  toggleSimulation: (k2) => set((s) => ({ cvdSimulations: { protanopia: s.cvdSimulations?.protanopia ?? false, deuteranopia: s.cvdSimulations?.deuteranopia ?? false, tritanopia: s.cvdSimulations?.tritanopia ?? false, [k2]: !s.cvdSimulations?.[k2] } })),
+  setAutosaveEnabled: (on) => set({ autosaveEnabled: on }),
+  hydrate: async () => {
+    try {
+      const raw = await window?.crimson?.storeGet?.("newProjectWizardState");
+      if (raw && typeof raw === "object") {
+        const allowed = ["profile", "keywords", "seeds", "mode", "harmonyMode", "lockedSeeds", "saturation", "internalContrast", "neutralLevels", "includeSemantic", "variantScope", "minContrast", "highContrastMode", "themes", "tokenPrefix", "mergeStrategy", "prefixOnMerge", "generateNeutrals", "enforceSemanticDistance", "distanceThreshold", "contrastPolicy", "foregroundHeuristic", "overlayOptions", "backgroundLayers", "minimalMode", "exportPresets", "tokenGroupSelections", "cvdSimulations", "autosaveEnabled", "userPresets"];
+        const patch = {};
+        for (const k2 of allowed) if (k2 in raw) patch[k2] = raw[k2];
+        set(patch);
+      }
+    } catch (e2) {
+    }
+  },
+  getAdjustedParams: () => {
+    const s = get2();
+    let saturation = s.saturation;
+    let internalContrast = s.internalContrast;
+    const kw = s.keywords.toLowerCase().split(/[,\s]+/).filter(Boolean);
+    const apply = (deltaSat, deltaContrast) => {
+      saturation = Math.min(1, Math.max(0, saturation + deltaSat));
+      internalContrast = Math.min(1, Math.max(0, internalContrast + deltaContrast));
+    };
+    for (const k2 of kw) {
+      if (["warm", "chaleur", "chaud"].includes(k2)) apply(0.05, 0);
+      if (["cool", "froid", "cold"].includes(k2)) apply(-0.05, 0);
+      if (["vivid", "punchy", "vif"].includes(k2)) apply(0.1, 0.05);
+      if (["pastel", "soft", "doux"].includes(k2)) apply(-0.2, -0.05);
+      if (["minimal", "calm", "sobre"].includes(k2)) apply(-0.15, 0);
+      if (["highcontrast", "accessible"].includes(k2)) apply(0, 0.15);
+      if (["vibrant"].includes(k2)) apply(0.12, 0.02);
+    }
+    switch (s.profile) {
+      case "Pastel":
+        apply(-0.25, -0.05);
+        break;
+      case "Vivid":
+        apply(0.1, 0.05);
+        break;
+      case "Monochrome":
+        apply(-0.4, 0.1);
+        break;
+      case "Nord":
+        apply(-0.15, -0.02);
+        break;
+      case "Solarized":
+        apply(-0.05, 0);
+        break;
+      case "Corporate":
+        apply(-0.1, 0.05);
+        break;
+      case "Material":
+        apply(0.05, 0);
+        break;
+      case "Fluent":
+        apply(-0.05, 0);
+        break;
+    }
+    return { saturation, internalContrast };
+  },
+  generateRenameSuggestions: () => {
+    const s = get2();
+    const draft = s.draft;
+    if (!draft) return;
+    const light = draft.light;
+    const suggestions = [];
+    const mapping = {
+      primary: "brand",
+      secondary: "accent",
+      accent: "highlight",
+      success: "positive",
+      danger: "negative",
+      warning: "caution",
+      info: "notice"
+    };
+    for (const [from, to] of Object.entries(mapping)) {
+      if (light[from] && !light[to]) {
+        suggestions.push({ from, to, reason: `Alias proposé pour ${from}` });
+      }
+    }
+    Object.keys(light).forEach((k2) => {
+      if (/^primary[A-Z]/.test(k2)) return;
+      if (/^brand/.test(k2)) return;
+      if (k2.startsWith("primary") && !light["brand"]) {
+        suggestions.push({ from: "primary", to: "brand", reason: "Standardisation brand vs primary" });
+      }
+    });
+    set({ renameSuggestions: suggestions });
+  },
+  applyPreset: (name) => {
+    const presets = {
+      Material: { seeds: ["#6750A4"], profile: "Material", saturation: 0.9, internalContrast: 0.55, variantScope: ["primary", "success", "danger", "warning", "info"], semanticsTokens: ["success", "danger", "warning", "info"] },
+      Nord: { seeds: ["#88c0d0"], profile: "Nord", saturation: 0.7, internalContrast: 0.5, semanticsTokens: ["success", "danger", "warning", "info"] },
+      Pastel: { seeds: ["#e6b8d6"], profile: "Pastel", saturation: 0.6, internalContrast: 0.45 },
+      Solarized: { seeds: ["#268bd2"], profile: "Solarized", saturation: 0.75, internalContrast: 0.5 },
+      Corporate: { seeds: ["#004e92"], profile: "Corporate", saturation: 0.7, internalContrast: 0.6 }
+    };
+    const p2 = presets[name];
+    if (!p2) return;
+    set((s) => {
+      const userSeeds = s.seeds || [];
+      const defaultLike = userSeeds.length === 0 || userSeeds.length === 1 && (userSeeds[0] === "#990000" || userSeeds[0] === p2.seeds[0]);
+      const nextSeeds = defaultLike ? p2.seeds : userSeeds;
+      return {
+        seeds: nextSeeds,
+        profile: p2.profile ?? s.profile,
+        saturation: p2.saturation ?? s.saturation,
+        internalContrast: p2.internalContrast ?? s.internalContrast,
+        variantScope: p2.variantScope ?? s.variantScope,
+        semanticsTokens: p2.semanticsTokens ?? s.semanticsTokens
+      };
+    });
+  },
+  toggleShowGrayscale: () => set((s) => ({ showGrayscaleSim: !s.showGrayscaleSim })),
+  toggleAutoRegenerate: () => set((s) => ({ autoRegenerate: !s.autoRegenerate })),
+  setMonochromeSemanticStrategy: (ms) => set({ monochromeSemanticStrategy: ms }),
+  saveUserPreset: (name) => set((s) => {
+    if (!name.trim()) return s;
+    const preset = { seeds: s.seeds, profile: s.profile, saturation: s.saturation, internalContrast: s.internalContrast, neutralLevels: s.neutralLevels, includeSemantic: s.includeSemantic, variantScope: s.variantScope };
+    return { userPresets: { ...s.userPresets || {}, [name.trim()]: preset } };
+  }),
+  applyUserPreset: (name) => set((s) => {
+    const p2 = s.userPresets?.[name];
+    if (!p2) return s;
+    return { seeds: p2.seeds, profile: p2.profile, saturation: p2.saturation, internalContrast: p2.internalContrast, neutralLevels: p2.neutralLevels, includeSemantic: p2.includeSemantic, variantScope: p2.variantScope };
+  }),
+  deleteUserPreset: (name) => set((s) => {
+    if (!s.userPresets?.[name]) return s;
+    const next = { ...s.userPresets };
+    delete next[name];
+    return { userPresets: next };
+  }),
+  setLastEffective: (e2) => set({ lastEffective: e2 }),
+  importUserPresets: (raw) => {
+    try {
+      const s = get2();
+      const existing = s.userPresets || {};
+      let parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        if (parsed.presets && typeof parsed.presets === "object") parsed = parsed.presets;
+        else if (parsed.userPresets && typeof parsed.userPresets === "object") parsed = parsed.userPresets;
+      }
+      let mapping = {};
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (!item || typeof item !== "object") continue;
+          const { name, seeds, profile, saturation, internalContrast, neutralLevels, includeSemantic, variantScope } = item;
+          if (!name || !Array.isArray(seeds)) continue;
+          mapping[name] = { seeds, profile: profile ?? null, saturation, internalContrast, neutralLevels, includeSemantic, variantScope };
+        }
+      } else if (parsed && typeof parsed === "object") {
+        mapping = parsed;
+      }
+      let imported = 0, skipped = 0, invalid = 0;
+      const next = { ...existing };
+      for (const [name, preset] of Object.entries(mapping)) {
+        if (!preset || typeof preset !== "object") {
+          invalid++;
+          continue;
+        }
+        const { seeds, saturation, internalContrast, neutralLevels, includeSemantic, variantScope, profile } = preset;
+        if (!Array.isArray(seeds) || seeds.length === 0) {
+          invalid++;
+          continue;
+        }
+        if (name in existing) {
+          skipped++;
+          continue;
+        }
+        next[name] = {
+          seeds: seeds.map((s2) => safeHex$2(s2)),
+          profile: typeof profile === "string" || profile === null ? profile : null,
+          saturation: typeof saturation === "number" ? saturation : s.saturation,
+          internalContrast: typeof internalContrast === "number" ? internalContrast : s.internalContrast,
+          neutralLevels: [5, 7, 9, 12].includes(neutralLevels) ? neutralLevels : s.neutralLevels,
+          includeSemantic: typeof includeSemantic === "boolean" ? includeSemantic : s.includeSemantic,
+          variantScope: Array.isArray(variantScope) ? variantScope : s.variantScope
+        };
+        imported++;
+      }
+      set({ userPresets: next });
+      return { imported, skipped, invalid };
+    } catch (e2) {
+      return null;
+    }
+  }
+}));
+let __wizard_unsub = null;
+if (typeof window !== "undefined") {
+  const attemptBind = () => {
+    const st = useNewProjectWizard.getState();
+    if (!__wizard_unsub) {
+      let timeout = null;
+      __wizard_unsub = useNewProjectWizard.subscribe((s, prev) => {
+        if (!s.autosaveEnabled) return;
+        const keys = ["profile", "keywords", "seeds", "mode", "harmonyMode", "lockedSeeds", "saturation", "internalContrast", "neutralLevels", "includeSemantic", "variantScope", "minContrast", "highContrastMode", "themes", "tokenPrefix", "mergeStrategy", "prefixOnMerge", "generateNeutrals", "enforceSemanticDistance", "distanceThreshold", "contrastPolicy", "foregroundHeuristic", "overlayOptions", "backgroundLayers", "minimalMode", "exportPresets", "tokenGroupSelections", "cvdSimulations", "autosaveEnabled", "userPresets"];
+        const changed = keys.some((k2) => s[k2] !== prev[k2]);
+        if (!changed) return;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          try {
+            const payload = {};
+            for (const k2 of keys) payload[k2] = s[k2](window)?.crimson?.storeSet?.("newProjectWizardState", payload);
+          } catch {
+          }
+        }, 400);
+      });
+    }
+    st.hydrate?.();
+  };
+  setTimeout(attemptBind, 1e3);
+}
+const fr = {
+  wizard_title: "Nouveau Projet",
+  step_context: "Contexte",
+  step_context_sub: "Définissez le cadre et l'intention esthétique.",
+  step_seeds: "Seeds",
+  step_seeds_sub: "Choisissez les couleurs de départ qui structurent la palette.",
+  step_options: "Options",
+  step_options_sub: "Paramètres de génération & variantes.",
+  step_access: "Accessibilité",
+  step_access_sub: "Contrastes & objectifs de lisibilité.",
+  step_themes: "Thèmes",
+  step_themes_sub: "Activer les modes clair / sombre ou auto.",
+  step_naming: "Nom & Fusion",
+  step_naming_sub: "Stratégie d'intégration dans la palette actuelle.",
+  step_preview: "Prévisualisation",
+  step_preview_sub: "Aperçu des principaux tokens générés.",
+  step_summary: "Résumé",
+  step_summary_sub: "Diff et application finale.",
+  label_keywords: "Mots-clés style",
+  label_profile: "Profil (optionnel)",
+  beta: "beta",
+  add_seed: "+ seed",
+  remove_seed: "Retirer",
+  saturation: "Saturation",
+  internal_contrast: "Contraste interne",
+  neutral_levels: "Niveaux neutres",
+  include_semantic: "Sémantiques (success/danger...)",
+  generate_neutrals: "Générer neutrals",
+  variant_scope: "Variants scope",
+  min_contrast: "Contraste minimum",
+  enforce_semantic_distance: "Distances sémantiques (ΔE ≥ {threshold})",
+  token_prefix: "Préfixe tokens",
+  prefix_merge: "Prefix merge",
+  apply_sandbox: "Appliquer (Sandbox)",
+  apply_direct: "Appliquer Direct",
+  regenerate: "Régénérer",
+  close: "Fermer",
+  previous: "Précédent",
+  next: "Suivant",
+  undo: "Undo",
+  redo: "Redo",
+  added: "Ajoutés",
+  replaced: "Remplacés",
+  unchanged: "Inchangés",
+  show_diff: "Voir Diff",
+  hide_diff: "Masquer Diff",
+  warnings: "Warnings",
+  notes: "Notes",
+  generated_tokens: "Tokens générés",
+  confirm_replace_needed: "Confirmation requise pour remplacement total (cliquer à nouveau Appliquer Direct)",
+  prefix_required: "Préfixe requis pour mergeWithPrefix",
+  exports: "Exports",
+  mode_minimal: "Mode Minimal",
+  mode_complet: "Mode Complet",
+  metrics: "Métriques",
+  simulation: "Simulation",
+  generate_suggestions: "Générer suggestions",
+  suggestions: "Suggestions",
+  apply: "Appliquer",
+  no_selection: "Aucune sélection",
+  new_project: "Nouveau Projet",
+  label_keywords_simple: "Style (mots-clés)",
+  help_keywords: "Mots séparés par virgule: influencent saturation & contraste (ex: vif, pastel, minimal, accessible).",
+  label_profile_simple: "Profil visuel",
+  help_profile: "Applique un réglage pré-déterminé (Pastel, Vivid, Nord…). Laissez vide pour neutre.",
+  label_saturation_simple: "Couleur (intensité)",
+  help_saturation: "Plus haut = couleurs plus vives. Plus bas = plus ternes/pastel.",
+  label_internal_contrast_simple: "Écart variantes",
+  help_internal_contrast: "Contrôle la différence entre Hover / Active / Subtle et la base.",
+  label_neutral_levels_simple: "Paliers neutres",
+  help_neutral_levels: "Nombre de gris générés (5,7,9,12). Plus = nuances plus fines.",
+  label_semantics_include: "Inclure couleurs sémantiques",
+  help_semantics_include: "Ajoute success / danger / warning / info dérivées de la couleur de base (teintes).",
+  label_distance_threshold: "Distance minimum (ΔE)",
+  help_distance_threshold: "Plus grand = force des teintes plus distinctes entre les couleurs sémantiques.",
+  label_variant_scope_simple: "Variants à générer",
+  help_variant_scope: "Sélectionnez les familles pour générer Hover / Active / Subtle.",
+  label_autoreg: "Auto régénération",
+  help_autoreg: "Met à jour la palette automatiquement après une courte pause de frappe.",
+  label_minimal_mode: "Mode réduit",
+  help_minimal_mode: "Masque les étapes avancées (accessibilité, sémantiques, simulation).",
+  label_harmony_mode: "Harmonie",
+  help_harmony_mode: "Schéma utilisé pour proposer Secondary et Accent si non fournis.",
+  label_secondary: "Secondaire",
+  label_accent: "Accent"
+};
+function t(key, vars) {
+  let str = fr[key];
+  if (vars) {
+    for (const [k2, v2] of Object.entries(vars)) str = str.replace(new RegExp(`{${k2}}`, "g"), String(v2));
+  }
+  return str;
+}
 const ProjectPanel = () => {
   const palette = usePaletteStore((s) => s.palette);
   const setPalette = usePaletteStore((s) => s.setPalette);
   const undo = usePaletteStore((s) => s.undo);
   const redo = usePaletteStore((s) => s.redo);
+  const openWizard = useNewProjectWizard((s) => s.openWizard);
   const saveProject = async () => {
     await window.crimson.saveText({ defaultPath: "crimson-project.json", content: JSON.stringify({ palette }, null, 2) });
   };
@@ -11976,6 +12488,7 @@ const ProjectPanel = () => {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", children: "Projet" }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 flex-wrap", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn btn-primary", onClick: openWizard, children: t("new_project") }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn", onClick: saveProject, children: "Sauvegarder projet" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn", onClick: loadProject, children: "Charger projet" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn", onClick: undo, children: "Undo" }),
@@ -12108,291 +12621,116 @@ const OnboardingOverlay = () => {
   ] });
   return reactDomExports.createPortal(content, root2);
 };
-const defaultSeeds = ["#990000"];
-const emptyDraft = () => ({ light: {}, dark: {} });
-const useNewProjectWizard = create((set, get2) => ({
-  open: false,
-  step: "context",
-  // Ordered wizard steps (no duplicates). 'context' covers style/profile inputs.
-  steps: ["context", "seeds", "options", "accessibility", "themes", "naming", "semantics", "components", "preview", "summary"],
-  profile: null,
-  keywords: "",
-  seeds: defaultSeeds,
-  mode: "single",
-  saturation: 0.85,
-  internalContrast: 0.55,
-  neutralLevels: 9,
-  includeSemantic: true,
-  variantScope: ["primary", "success", "danger", "warning", "info"],
-  minContrast: 4.5,
-  highContrastMode: false,
-  themes: { light: true, dark: true, auto: false },
-  tokenPrefix: "",
-  mergeStrategy: "replace",
-  prefixOnMerge: "new",
-  generateNeutrals: true,
-  enforceSemanticDistance: true,
-  distanceThreshold: 5,
-  contrastPolicy: "wcagAA",
-  foregroundHeuristic: "auto",
-  overlayOptions: { enable: false, opacity: 0.5, blend: "overlay" },
-  backgroundLayers: [{ id: "base", role: "base" }],
-  minimalMode: false,
-  exportPresets: { css: true, tailwind: false, json: true },
-  tokenGroupSelections: {},
-  cvdSimulations: { protanopia: false, deuteranopia: false, tritanopia: false },
-  autosaveEnabled: false,
-  styleKeywordsMapping: {},
-  draft: emptyDraft(),
-  applying: false,
-  error: null,
-  confirmReplace: false,
-  history: [],
-  future: [],
-  renameSuggestions: [],
-  openWizard: () => set({ open: true }),
-  closeWizard: () => set({ open: false }),
-  next: () => set((s) => {
-    const i = s.steps.indexOf(s.step);
-    return { step: s.steps[Math.min(s.steps.length - 1, i + 1)] };
-  }),
-  prev: () => set((s) => {
-    const i = s.steps.indexOf(s.step);
-    return { step: s.steps[Math.max(0, i - 1)] };
-  }),
-  go: (st) => set((s) => s.steps.includes(st) ? { step: st } : {}),
-  setSeeds: (v2) => set({ seeds: v2.map((s) => safeHex$2(s)) }),
-  setKeywords: (v2) => set({ keywords: v2 }),
-  setProfile: (p2) => set({ profile: p2 }),
-  setMode: (m2) => set({ mode: m2 }),
-  setSaturation: (n2) => set({ saturation: Math.min(1, Math.max(0, n2)) }),
-  setInternalContrast: (n2) => set({ internalContrast: Math.min(1, Math.max(0, n2)) }),
-  setNeutralLevels: (n2) => set({ neutralLevels: n2 }),
-  toggleSemantic: () => set((s) => ({ includeSemantic: !s.includeSemantic })),
-  toggleVariant: (v2) => set((s) => ({ variantScope: s.variantScope.includes(v2) ? s.variantScope.filter((x2) => x2 !== v2) : [...s.variantScope, v2] })),
-  setMinContrast: (n2) => set({ minContrast: Math.max(1, Math.min(21, n2)) }),
-  toggleThemeFlag: (k2) => set((s) => ({ themes: { ...s.themes, [k2]: !s.themes[k2] } })),
-  setTokenPrefix: (p2) => set({ tokenPrefix: p2 }),
-  setMergeStrategy: (m2) => set({ mergeStrategy: m2 }),
-  setPrefixOnMerge: (p2) => set({ prefixOnMerge: p2 }),
-  setGenerateNeutrals: (on) => set({ generateNeutrals: on }),
-  setEnforceSemanticDistance: (on) => set({ enforceSemanticDistance: on }),
-  setDistanceThreshold: (n2) => set({ distanceThreshold: n2 }),
-  setDraft: (draft) => set((s) => {
-    const prev = s.draft || emptyDraft();
-    const eq = (a, b) => {
-      const ak2 = Object.keys(a);
-      const bk2 = Object.keys(b);
-      if (ak2.length !== bk2.length) return false;
-      for (const k2 of ak2) if (a[k2] !== b[k2]) return false;
-      return true;
-    };
-    if (eq(prev.light, draft.light) && eq(prev.dark, draft.dark)) return s;
-    const nextHistory = [...s.history, prev];
-    const limited = nextHistory.length > 30 ? nextHistory.slice(nextHistory.length - 30) : nextHistory;
-    return { draft, history: limited, future: [] };
-  }),
-  regenDraft: () => {
-    const base = { light: {}, dark: {} };
-    set((s) => ({ draft: base, history: [...s.history, s.draft || emptyDraft()], future: [] }));
-  },
-  undo: () => set((s) => {
-    const prev = s.history[s.history.length - 1];
-    if (!prev) return s;
-    const history = s.history.slice(0, -1);
-    const future = [s.draft, ...s.future];
-    return { draft: prev, history, future };
-  }),
-  redo: () => set((s) => {
-    const next = s.future[0];
-    if (!next) return s;
-    const future = s.future.slice(1);
-    const history = [...s.history, s.draft];
-    return { draft: next, history, future };
-  }),
-  apply: async (toSandbox) => {
-    const { draft, mergeStrategy, tokenPrefix, prefixOnMerge, themes, confirmReplace } = get2();
-    if (!draft) return;
-    if (mergeStrategy === "mergeWithPrefix" && !prefixOnMerge.trim()) {
-      set({ error: "Préfixe requis pour mergeWithPrefix" });
-      return;
-    }
-    if (mergeStrategy === "replace" && !confirmReplace) {
-      set({ error: "Confirmation requise pour remplacement total (cliquer à nouveau Appliquer Direct)", confirmReplace: true });
-      return;
-    }
-    const palStore = usePaletteStore.getState();
-    const targetThemes = { light: themes.light ? draft.light : palStore.palettes.light, dark: themes.dark ? draft.dark : palStore.palettes.dark };
-    const merge = (base, incoming) => {
-      if (mergeStrategy === "replace") return { ...incoming };
-      if (mergeStrategy === "merge") return { ...base, ...incoming };
-      const withPrefix = Object.fromEntries(Object.entries(incoming).map(([k2, v2]) => [`${prefixOnMerge}${k2.charAt(0).toUpperCase()}${k2.slice(1)}`, v2]));
-      return { ...base, ...withPrefix };
-    };
-    const nextLight = merge(palStore.palettes.light, targetThemes.light);
-    const nextDark = merge(palStore.palettes.dark, targetThemes.dark);
-    if (toSandbox) {
-      const active = palStore.theme === "dark" ? nextDark : nextLight;
-      usePaletteStore.setState((s) => ({ sandbox: active, sandboxActive: true }));
-    } else {
-      usePaletteStore.setState((s) => ({ palettes: { light: nextLight, dark: nextDark }, palette: s.theme === "dark" ? nextDark : nextLight, history: [...s.history, s.palette], future: [], paletteVersion: (s.paletteVersion || 0) + 1 }));
-    }
-    set({ open: false, confirmReplace: false, error: null });
-  },
-  resetConfirmation: () => set({ confirmReplace: false, error: null }),
-  setContrastPolicy: (p2) => set({ contrastPolicy: p2 }),
-  setForegroundHeuristic: (f2) => set({ foregroundHeuristic: f2 }),
-  setOverlayOptions: (o) => set({ overlayOptions: o }),
-  addBackgroundLayer: (role) => set((s) => ({ backgroundLayers: [...s.backgroundLayers || [], { id: "layer_" + Date.now().toString(36), role: role || "bg" }] })),
-  updateBackgroundLayer: (id2, patch) => set((s) => ({ backgroundLayers: (s.backgroundLayers || []).map((l2) => l2.id === id2 ? { ...l2, ...patch } : l2) })),
-  removeBackgroundLayer: (id2) => set((s) => ({ backgroundLayers: (s.backgroundLayers || []).filter((l2) => l2.id !== id2) })),
-  toggleMinimalMode: () => set((s) => ({ minimalMode: !s.minimalMode })),
-  toggleExportPreset: (k2) => set((s) => ({ exportPresets: { css: s.exportPresets?.css ?? false, tailwind: s.exportPresets?.tailwind ?? false, json: s.exportPresets?.json ?? false, [k2]: !s.exportPresets?.[k2] } })),
-  toggleTokenGroup: (group) => set((s) => ({ tokenGroupSelections: { ...s.tokenGroupSelections || {}, [group]: !s.tokenGroupSelections?.[group] } })),
-  toggleSimulation: (k2) => set((s) => ({ cvdSimulations: { protanopia: s.cvdSimulations?.protanopia ?? false, deuteranopia: s.cvdSimulations?.deuteranopia ?? false, tritanopia: s.cvdSimulations?.tritanopia ?? false, [k2]: !s.cvdSimulations?.[k2] } })),
-  setAutosaveEnabled: (on) => set({ autosaveEnabled: on }),
-  hydrate: async () => {
-    try {
-      const raw = await window?.crimson?.storeGet?.("newProjectWizardState");
-      if (raw && typeof raw === "object") {
-        const allowed = ["profile", "keywords", "seeds", "mode", "saturation", "internalContrast", "neutralLevels", "includeSemantic", "variantScope", "minContrast", "highContrastMode", "themes", "tokenPrefix", "mergeStrategy", "prefixOnMerge", "generateNeutrals", "enforceSemanticDistance", "distanceThreshold", "contrastPolicy", "foregroundHeuristic", "overlayOptions", "backgroundLayers", "minimalMode", "exportPresets", "tokenGroupSelections", "cvdSimulations", "autosaveEnabled"];
-        const patch = {};
-        for (const k2 of allowed) if (k2 in raw) patch[k2] = raw[k2];
-        set(patch);
-      }
-    } catch (e2) {
-    }
-  },
-  getAdjustedParams: () => {
-    const s = get2();
-    let saturation = s.saturation;
-    let internalContrast = s.internalContrast;
-    const kw = s.keywords.toLowerCase().split(/[,\s]+/).filter(Boolean);
-    const apply = (deltaSat, deltaContrast) => {
-      saturation = Math.min(1, Math.max(0, saturation + deltaSat));
-      internalContrast = Math.min(1, Math.max(0, internalContrast + deltaContrast));
-    };
-    for (const k2 of kw) {
-      if (["warm", "chaleur", "chaud"].includes(k2)) apply(0.05, 0);
-      if (["cool", "froid", "cold"].includes(k2)) apply(-0.05, 0);
-      if (["vivid", "punchy", "vif"].includes(k2)) apply(0.1, 0.05);
-      if (["pastel", "soft", "doux"].includes(k2)) apply(-0.2, -0.05);
-      if (["minimal", "calm", "sobre"].includes(k2)) apply(-0.15, 0);
-      if (["highcontrast", "accessible"].includes(k2)) apply(0, 0.15);
-      if (["vibrant"].includes(k2)) apply(0.12, 0.02);
-    }
-    switch (s.profile) {
-      case "Pastel":
-        apply(-0.25, -0.05);
-        break;
-      case "Vivid":
-        apply(0.1, 0.05);
-        break;
-      case "Monochrome":
-        apply(-0.4, 0.1);
-        break;
-      case "Nord":
-        apply(-0.15, -0.02);
-        break;
-      case "Solarized":
-        apply(-0.05, 0);
-        break;
-      case "Corporate":
-        apply(-0.1, 0.05);
-        break;
-      case "Material":
-        apply(0.05, 0);
-        break;
-      case "Fluent":
-        apply(-0.05, 0);
-        break;
-    }
-    return { saturation, internalContrast };
-  },
-  generateRenameSuggestions: () => {
-    const s = get2();
-    const draft = s.draft;
-    if (!draft) return;
-    const light = draft.light;
-    const suggestions = [];
-    const mapping = {
-      primary: "brand",
-      secondary: "accent",
-      accent: "highlight",
-      success: "positive",
-      danger: "negative",
-      warning: "caution",
-      info: "notice"
-    };
-    for (const [from, to] of Object.entries(mapping)) {
-      if (light[from] && !light[to]) {
-        suggestions.push({ from, to, reason: `Alias proposé pour ${from}` });
-      }
-    }
-    Object.keys(light).forEach((k2) => {
-      if (/^primary[A-Z]/.test(k2)) return;
-      if (/^brand/.test(k2)) return;
-      if (k2.startsWith("primary") && !light["brand"]) {
-        suggestions.push({ from: "primary", to: "brand", reason: "Standardisation brand vs primary" });
-      }
-    });
-    set({ renameSuggestions: suggestions });
-  }
-}));
-let __wizard_unsub = null;
-if (typeof window !== "undefined") {
-  const attemptBind = () => {
-    const st = useNewProjectWizard.getState();
-    if (!__wizard_unsub) {
-      let timeout = null;
-      __wizard_unsub = useNewProjectWizard.subscribe((s, prev) => {
-        if (!s.autosaveEnabled) return;
-        const keys = ["profile", "keywords", "seeds", "mode", "saturation", "internalContrast", "neutralLevels", "includeSemantic", "variantScope", "minContrast", "highContrastMode", "themes", "tokenPrefix", "mergeStrategy", "prefixOnMerge", "generateNeutrals", "enforceSemanticDistance", "distanceThreshold", "contrastPolicy", "foregroundHeuristic", "overlayOptions", "backgroundLayers", "minimalMode", "exportPresets", "tokenGroupSelections", "cvdSimulations", "autosaveEnabled"];
-        const changed = keys.some((k2) => s[k2] !== prev[k2]);
-        if (!changed) return;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-          try {
-            const payload = {};
-            for (const k2 of keys) payload[k2] = s[k2](window)?.crimson?.storeSet?.("newProjectWizardState", payload);
-          } catch {
-          }
-        }, 400);
-      });
-    }
-    st.hydrate?.();
-  };
-  setTimeout(attemptBind, 1e3);
+const toHsl$2 = converter("hsl");
+const toRgb$2 = converter("rgb");
+function pickAutoHarmony(opts) {
+  const kw = (opts.keywords || "").toLowerCase();
+  const p2 = parse(opts.base);
+  if (!p2) return "triad";
+  if (/pastel|minimal|mono|sobr|calm/.test(kw) || opts.profile === "Monochrome") return "analogous";
+  if (/vivid|punchy|vibrant/.test(kw) || opts.profile === "Vivid") return "triad";
+  if (/corporate|fluent|material|brand|trust/.test(kw) || opts.profile === "Corporate") return "complementary";
+  return "triad";
 }
-const toHsl = converter("hsl");
-const toRgb = converter("rgb");
+function rotate$2(hex2, deg) {
+  const p2 = parse(hex2);
+  if (!p2) return hex2;
+  const h = toHsl$2(p2);
+  h.h = (((h.h || 0) + deg) % 360 + 360) % 360;
+  return formatHex(toRgb$2(h)) || hex2;
+}
+function adjustSeed(hex2, opts) {
+  const p2 = parse(hex2);
+  if (!p2) return hex2;
+  const h = toHsl$2(p2);
+  const kw = (opts.keywords || "").toLowerCase().split(/[\s,]+/).filter(Boolean);
+  const sat = h.s || 0;
+  const l2 = h.l || 0.5;
+  if (opts.profile === "Pastel") {
+    h.s = Math.max(0, sat * 0.65);
+    h.l = Math.min(0.9, l2 + 0.05);
+  } else if (opts.profile === "Vivid") {
+    h.s = Math.min(1, sat * 1.12 + 0.04);
+  } else if (opts.profile === "Monochrome") {
+    h.s = sat * 0.15;
+  } else if (opts.profile === "Nord") {
+    h.s = sat * 0.75;
+    h.l = Math.min(0.85, l2 + 0.03);
+  } else if (opts.profile === "Solarized") {
+    h.s = sat * 0.9;
+  } else if (opts.profile === "Corporate") {
+    h.s = sat * 0.8;
+  }
+  if (kw.includes("pastel")) h.s = Math.min(h.s, 0.55);
+  if (kw.includes("vif") || kw.includes("vivid") || kw.includes("punchy") || kw.includes("vibrant")) h.s = Math.min(1, h.s * 1.15 + 0.03);
+  if (kw.includes("minimal") || kw.includes("sobre")) h.s = h.s * 0.7;
+  return formatHex(toRgb$2(h)) || hex2;
+}
+function ensureSeparation(a, b) {
+  let attempts = 0;
+  let currentB = b;
+  while (deltaE(a, currentB) < 12 && attempts < 18) {
+    currentB = rotate$2(currentB, 15 + attempts);
+    attempts++;
+  }
+  return { a, b: currentB };
+}
+function deriveHarmonySeeds(primary, mode) {
+  if (mode === "complementary") return [primary, rotate$2(primary, 180)];
+  if (mode === "triad") return [primary, rotate$2(primary, 120), rotate$2(primary, -120)];
+  return [primary, rotate$2(primary, 30), rotate$2(primary, -30)];
+}
+const toHsl$1 = converter("hsl");
+const toRgb$1 = converter("rgb");
 const clamp01 = (n2) => Math.min(1, Math.max(0, n2));
 function adjustSaturation(hex2, sat) {
   const p2 = parse(hex2);
   if (!p2) return hex2;
-  const h = toHsl(p2);
+  const h = toHsl$1(p2);
   h.s = clamp01((h.s ?? 0) * sat);
-  return formatHex(toRgb(h)) || hex2;
+  return formatHex(toRgb$1(h)) || hex2;
 }
-function deriveSeeds(params) {
-  const base = params.seeds[0] || "#990000";
-  const p2 = parse(base);
-  if (!p2) return [base];
-  const h = toHsl(p2);
-  const mk2 = (d) => {
-    const clone = { ...h };
-    clone.h = (((clone.h || 0) + d) % 360 + 360) % 360;
-    return formatHex(toRgb(clone)) || base;
-  };
+function rotate$1(hex2, deg) {
+  const p2 = parse(hex2);
+  if (!p2) return hex2;
+  const h = toHsl$1(p2);
+  h.h = (((h.h || 0) + deg) % 360 + 360) % 360;
+  return formatHex(toRgb$1(h)) || hex2;
+}
+function deriveSeeds(params, notes) {
+  const baseRaw = params.seeds[0] || "#990000";
+  const primary = adjustSeed(baseRaw, { profile: params.profile, keywords: params.baseKeywords });
+  const providedSecond = params.seeds[1];
+  const providedThird = params.seeds[2];
+  const locks = params.lockedSeeds || [];
+  let chosenHarmony;
+  const explicit = providedSecond || providedThird;
+  if (!explicit) {
+    if (params.harmonyMode && params.harmonyMode !== "auto") {
+      chosenHarmony = params.harmonyMode;
+    } else {
+      chosenHarmony = pickAutoHarmony({ base: primary, profile: params.profile, keywords: params.baseKeywords });
+      notes.push(`[harmony:auto] choisi=${chosenHarmony}`);
+    }
+  }
+  if (explicit) {
+    const secondAdj = providedSecond ? locks[1] ? providedSecond : adjustSeed(providedSecond, { profile: params.profile, keywords: params.baseKeywords }) : void 0;
+    const thirdAdj = providedThird ? locks[2] ? providedThird : adjustSeed(providedThird, { profile: params.profile, keywords: params.baseKeywords }) : void 0;
+    return { seeds: [primary, secondAdj, thirdAdj].filter(Boolean) };
+  }
+  if (chosenHarmony) {
+    let derived = deriveHarmonySeeds(primary, chosenHarmony);
+    if (locks[1] && !providedSecond) derived[1] = void 0;
+    if (locks[2] && !providedThird) derived[2] = void 0;
+    return { seeds: derived.filter(Boolean), chosenHarmony };
+  }
   switch (params.mode) {
     case "dual":
-      return [base, mk2(180)];
+      return { seeds: [primary, rotate$1(primary, 180)] };
     case "triad":
-      return [base, mk2(120), mk2(-120)];
-    case "mono":
-      return [base];
+      return { seeds: [primary, rotate$1(primary, 120), rotate$1(primary, -120)] };
     default:
-      return [base];
+      return { seeds: [primary] };
   }
 }
 function hexToRgbLocal(hex2) {
@@ -12465,8 +12803,42 @@ function variantsFor(baseName, baseHex, bg2, internalContrast) {
 function generatePalette(params) {
   const warnings = [];
   const notes = [];
-  const seeds = deriveSeeds(params).map((s) => adjustSaturation(s, params.saturation));
+  const { seeds: seedsDerived, chosenHarmony } = deriveSeeds(params, notes);
+  const seedsRaw = seedsDerived;
+  const seeds = seedsRaw.map((s, i) => {
+    const satFactor = i === 0 ? params.saturation : params.harmonyMode === "triad" ? params.saturation * 0.92 : params.harmonyMode === "analogous" ? params.saturation * 0.95 : params.saturation;
+    return adjustSaturation(s, satFactor);
+  });
   const primary = seeds[0];
+  const autoSecondary = !seedsRaw[1];
+  const autoAccent = !seedsRaw[2];
+  let secondary = seeds[1];
+  let accent = seeds[2];
+  if (!secondary && primary) secondary = mix(primary, "#ffffff", 0.18);
+  if (!accent) accent = seeds[1] ? mix(seeds[1], "#000000", 0.18) : primary ? mix(primary, "#000000", 0.22) : primary;
+  const primaryLum = luminance(primary);
+  const adjustLum = (hex2, targetDelta) => {
+    const p2 = parse(hex2);
+    if (!p2) return hex2;
+    const hsl = toHsl$1(p2);
+    const baseL = hsl.l ?? 0.5;
+    hsl.l = clamp01(baseL + targetDelta);
+    return formatHex(toRgb$1(hsl)) || hex2;
+  };
+  if (autoSecondary && secondary) {
+    if (luminance(secondary) <= primaryLum) secondary = adjustLum(secondary, 0.06);
+  }
+  if (autoAccent && accent) {
+    if (luminance(accent) >= primaryLum) accent = adjustLum(accent, -0.07);
+  }
+  if (autoSecondary && secondary) {
+    const { b } = ensureSeparation(primary, secondary);
+    secondary = b;
+  }
+  if ((autoAccent || autoSecondary) && accent) {
+    const { b } = ensureSeparation(secondary || primary, accent);
+    accent = b;
+  }
   const lightBase = "#f7f8fa";
   let lightBg = lightBase;
   if (params.backgroundLayers && params.backgroundLayers.length > 1) {
@@ -12483,25 +12855,30 @@ function generatePalette(params) {
   const darkSurface = mix(darkBg, "#ffffff", 0.06);
   const darkText = ensureFg(darkBg, params.minContrast);
   const darkBorder = mix(darkBg, darkText, 0.22);
-  const baseLight = { primary, background: lightBg, surface: lightSurface, text: lightText, border: lightBorder };
-  const baseDark = { primary, background: darkBg, surface: darkSurface, text: darkText, border: darkBorder };
+  const baseLight = { primary, secondary, accent, background: lightBg, surface: lightSurface, text: lightText, border: lightBorder };
+  const baseDark = { primary, secondary, accent, background: darkBg, surface: darkSurface, text: darkText, border: darkBorder };
   if (params.includeSemantic) {
     const p2 = parse(primary);
     if (p2) {
-      const hsl = toHsl(p2);
+      const hsl = toHsl$1(p2);
       const mk2 = (deg, satDelta = 0, lDelta = 0) => {
         const clone = { ...hsl };
         clone.h = (((clone.h || 0) + deg) % 360 + 360) % 360;
         clone.s = clamp01((clone.s || 0) + satDelta);
         clone.l = clamp01((clone.l || 0) + lDelta);
-        return formatHex(toRgb(clone)) || primary;
+        return formatHex(toRgb$1(clone)) || primary;
       };
-      const semantic = {
+      const allSemantic = {
         success: mk2(120, 0, 0),
-        danger: mk2(300, 0, -0.05),
-        warning: mk2(45, 0.05, 0.05),
-        info: mk2(-60, 0, 0)
+        danger: mk2(-60, 0, 0),
+        warning: mk2(45, 0, 0),
+        info: mk2(-120, 0, 0)
       };
+      const allowed = params.semanticsTokens && params.semanticsTokens.length ? params.semanticsTokens : ["success", "danger", "warning", "info"];
+      const semantic = {};
+      allowed.forEach((k2) => {
+        if (allSemantic[k2]) semantic[k2] = allSemantic[k2];
+      });
       Object.assign(baseLight, semantic);
       Object.assign(baseDark, semantic);
     }
@@ -12526,7 +12903,7 @@ function generatePalette(params) {
   params.variantScope.forEach((tok) => {
     const exists = !!(baseLight[tok] || baseDark[tok]);
     if (!exists) {
-      warnings.push(`Variant ignoré: token '${tok}' absent`);
+      warnings.push(`[variant] Variant ignoré: token '${tok}' absent`);
       return;
     }
     if (baseLight[tok]) Object.assign(baseLight, variantsFor(tok, baseLight[tok], lightBg, params.internalContrast));
@@ -12537,18 +12914,39 @@ function generatePalette(params) {
     baseLight.overlay = layer(lightBg);
     baseDark.overlay = layer(darkBg);
   }
+  if (params.extraTokens && params.extraTokens.length) {
+    const wanted = new Set(params.extraTokens);
+    const accent2 = baseLight.primary;
+    if (wanted.has("focusRing")) {
+      baseLight.focusRing = ensureContrast(lighten(accent2, 0.25), lightBg, Math.max(3, params.minContrast - 1));
+      baseDark.focusRing = ensureContrast(darken(accent2, 0.25), darkBg, Math.max(3, params.minContrast - 1));
+    }
+    if (wanted.has("selectionBg")) {
+      baseLight.selectionBg = mix(lightBg, accent2, 0.25);
+      baseDark.selectionBg = mix(darkBg, accent2, 0.35);
+    }
+    if (wanted.has("selectionFg")) {
+      baseLight.selectionFg = ensureFg(baseLight.selectionBg || accent2, params.minContrast);
+      baseDark.selectionFg = ensureFg(baseDark.selectionBg || accent2, params.minContrast);
+    }
+    if (wanted.has("selectionBg") && (baseLight.selectionBg || baseDark.selectionBg)) {
+      baseLight.selectionBgHover = mix(baseLight.selectionBg || accent2, accent2, 0.25);
+      baseDark.selectionBgHover = mix(baseDark.selectionBg || accent2, accent2, 0.25);
+    }
+  }
   if (params.includeSemantic && params.enforceSemanticDistance) {
     const semas = ["success", "danger", "warning", "info"];
     const adjustHue = (hex2, degrees) => {
       const p2 = parse(hex2);
       if (!p2) return hex2;
-      const hsl = toHsl(p2);
+      const hsl = toHsl$1(p2);
       hsl.h = (((hsl.h || 0) + degrees) % 360 + 360) % 360;
-      return formatHex(toRgb(hsl)) || hex2;
+      return formatHex(toRgb$1(hsl)) || hex2;
     };
     for (let i = 0; i < semas.length; i++) {
       for (let j = i + 1; j < semas.length; j++) {
         const a = semas[i], b = semas[j];
+        if (!baseLight[a] || !baseLight[b]) continue;
         if (baseLight[a] && baseLight[b]) {
           let d = deltaE(baseLight[a], baseLight[b]), attempts = 0;
           while (d < params.distanceThreshold && attempts < 12) {
@@ -12559,7 +12957,7 @@ function generatePalette(params) {
             attempts++;
           }
           if (d < params.distanceThreshold) {
-            warnings.push(`Distance sémantique encore faible (${a}/${b}) ΔE=${d.toFixed(2)} après ajustements`);
+            warnings.push(`[distance] Distance sémantique encore faible (${a}/${b}) ΔE=${d.toFixed(2)} après ajustements`);
           } else if (attempts > 0) {
             notes.push(`Ajustement ${b} (${attempts} itérations) pour ΔE=${d.toFixed(2)}`);
           }
@@ -12587,7 +12985,7 @@ function generatePalette(params) {
         return Math.sqrt(dr * dr + dg2 * dg2 + db2 * db2);
       })();
       if (dE < 5 || rgbDist < 24) {
-        warnings.push(`Collision chromatique ${a}/${b} ΔE=${dE.toFixed(2)} rgbDist=${Math.round(rgbDist)}`);
+        warnings.push(`[collision] Collision chromatique ${a}/${b} ΔE=${dE.toFixed(2)} rgbDist=${Math.round(rgbDist)}`);
       }
     }
   }
@@ -12623,7 +13021,7 @@ function generatePalette(params) {
   if (metric.semanticDiversity && metric.avgFgContrast) {
     metric.accessibilityScore = metric.avgFgContrast / params.minContrast * 0.6 + Math.min(1, metric.semanticDiversity / 20) * 0.4;
   }
-  return { light: baseLight, dark: baseDark, meta: { warnings, notes, metrics: metric } };
+  return { light: baseLight, dark: baseDark, meta: { warnings, notes, metrics: metric, chosenHarmony } };
 }
 function useFocusTrap(ref, active, onEscape) {
   reactExports.useEffect(() => {
@@ -12636,10 +13034,10 @@ function useFocusTrap(ref, active, onEscape) {
       if (e2.key === "Escape") {
         onEscape?.();
       } else if (e2.key === "Tab") {
-        const list2 = getFocusable();
-        if (!list2.length) return;
-        const first = list2[0];
-        const last = list2[list2.length - 1];
+        const list = getFocusable();
+        if (!list.length) return;
+        const first = list[0];
+        const last = list[list.length - 1];
         if (e2.shiftKey && document.activeElement === first) {
           e2.preventDefault();
           last.focus();
@@ -12650,123 +13048,394 @@ function useFocusTrap(ref, active, onEscape) {
       }
     };
     document.addEventListener("keydown", handleKey);
-    const list = getFocusable();
-    if (list[0]) list[0].focus();
+    if (!root2.hasAttribute("data-trap-init")) {
+      root2.setAttribute("data-trap-init", "true");
+      const list = getFocusable();
+      if (list[0]) list[0].focus();
+    }
     return () => {
       document.removeEventListener("keydown", handleKey);
     };
   }, [active, onEscape]);
 }
-const fr = {
-  wizard_title: "Nouveau Projet",
-  step_context: "Contexte",
-  step_context_sub: "Définissez le cadre et l'intention esthétique.",
-  step_seeds: "Seeds",
-  step_seeds_sub: "Choisissez les couleurs de départ qui structurent la palette.",
-  step_options: "Options",
-  step_options_sub: "Paramètres de génération & variantes.",
-  step_access: "Accessibilité",
-  step_access_sub: "Contrastes & objectifs de lisibilité.",
-  step_themes: "Thèmes",
-  step_themes_sub: "Activer les modes clair / sombre ou auto.",
-  step_naming: "Nom & Fusion",
-  step_naming_sub: "Stratégie d'intégration dans la palette actuelle.",
-  step_preview: "Prévisualisation",
-  step_preview_sub: "Aperçu des principaux tokens générés.",
-  step_summary: "Résumé",
-  step_summary_sub: "Diff et application finale.",
-  label_keywords: "Mots-clés style",
-  label_profile: "Profil (optionnel)",
-  beta: "beta",
-  add_seed: "+ seed",
-  remove_seed: "Retirer",
-  saturation: "Saturation",
-  internal_contrast: "Contraste interne",
-  neutral_levels: "Niveaux neutres",
-  include_semantic: "Sémantiques (success/danger...)",
-  generate_neutrals: "Générer neutrals",
-  variant_scope: "Variants scope",
-  min_contrast: "Contraste minimum",
-  enforce_semantic_distance: "Distances sémantiques (ΔE ≥ {threshold})",
-  token_prefix: "Préfixe tokens",
-  prefix_merge: "Prefix merge",
-  apply_sandbox: "Appliquer (Sandbox)",
-  apply_direct: "Appliquer Direct",
-  regenerate: "Régénérer",
-  close: "Fermer",
-  previous: "Précédent",
-  next: "Suivant",
-  undo: "Undo",
-  redo: "Redo",
-  added: "Ajoutés",
-  replaced: "Remplacés",
-  unchanged: "Inchangés",
-  show_diff: "Voir Diff",
-  hide_diff: "Masquer Diff",
-  warnings: "Warnings",
-  notes: "Notes",
-  generated_tokens: "Tokens générés",
-  confirm_replace_needed: "Confirmation requise pour remplacement total (cliquer à nouveau Appliquer Direct)",
-  prefix_required: "Préfixe requis pour mergeWithPrefix",
-  exports: "Exports",
-  mode_minimal: "Mode Minimal",
-  mode_complet: "Mode Complet",
-  metrics: "Métriques",
-  simulation: "Simulation",
-  generate_suggestions: "Générer suggestions",
-  suggestions: "Suggestions",
-  apply: "Appliquer",
-  no_selection: "Aucune sélection"
-};
-function t(key, vars) {
-  let str = fr[key];
-  if (vars) {
-    for (const [k2, v2] of Object.entries(vars)) str = str.replace(new RegExp(`{${k2}}`, "g"), String(v2));
+function comparePalettes(base, draft) {
+  const added = [];
+  const removed = [];
+  const changed = [];
+  const baseKeys = new Set(Object.keys(base));
+  const draftKeys = new Set(Object.keys(draft));
+  for (const k2 of draftKeys) {
+    if (!baseKeys.has(k2)) {
+      added.push(k2);
+      continue;
+    }
+    if (base[k2] !== draft[k2]) changed.push(k2);
   }
-  return str;
+  for (const k2 of baseKeys) if (!draftKeys.has(k2)) removed.push(k2);
+  return { added, removed, changed };
 }
-const StepHeader = ({ title, subtitle }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-4", children: [
+const Tooltip = ({ label, children, side = "top" }) => {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "relative inline-block group", children: [
+    React$2.cloneElement(children, { "data-has-tooltip": true }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "span",
+      {
+        role: "tooltip",
+        className: `pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-[10px] px-2 py-1 rounded bg-neutral-900 text-white shadow-lg border border-neutral-700 absolute z-50 whitespace-pre max-w-xs break-words
+          ${side === "top" ? "bottom-full left-1/2 -translate-x-1/2 mb-1" : ""}
+          ${side === "bottom" ? "top-full left-1/2 -translate-x-1/2 mt-1" : ""}
+          ${side === "left" ? "right-full top-1/2 -translate-y-1/2 mr-1" : ""}
+          ${side === "right" ? "left-full top-1/2 -translate-y-1/2 ml-1" : ""}
+        `,
+        children: label
+      }
+    )
+  ] });
+};
+const StepHeader$1 = ({ title, subtitle }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-4", children: [
   /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", children: title }),
   subtitle && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs opacity-70 mt-1 leading-snug", children: subtitle })
 ] });
 const StepContext = () => {
   const w2 = useNewProjectWizard();
+  const kw = w2.keywords.toLowerCase().split(/[\s,]+/).filter(Boolean);
+  let effSat = w2.saturation;
+  let effIC = w2.internalContrast;
+  let effMin = w2.minContrast;
+  let effPolicy = w2.contrastPolicy;
+  let effNeutrals = w2.neutralLevels;
+  if (kw.includes("accessible") || kw.includes("highcontrast")) {
+    effMin = Math.max(effMin, 7);
+    effPolicy = "wcagAAA";
+    effIC = Math.min(1, effIC + 0.05);
+  }
+  if (w2.profile === "Monochrome") {
+    effSat = Math.max(0, effSat - 0.5);
+    if (effNeutrals < 9) effNeutrals = 9;
+  }
+  const preview = reactExports.useMemo(() => {
+    try {
+      const draft = generatePalette({
+        seeds: w2.seeds,
+        mode: w2.mode,
+        harmonyMode: w2.harmonyMode,
+        saturation: w2.saturation,
+        internalContrast: w2.internalContrast,
+        neutralLevels: 5,
+        // lighter for preview
+        includeSemantic: false,
+        variantScope: ["primary", "secondary", "accent"],
+        semanticsTokens: [],
+        minContrast: w2.minContrast,
+        generateNeutrals: false,
+        enforceSemanticDistance: false,
+        distanceThreshold: w2.distanceThreshold,
+        baseKeywords: w2.keywords,
+        profile: w2.profile,
+        contrastPolicy: w2.contrastPolicy,
+        foregroundHeuristic: w2.foregroundHeuristic,
+        overlayOptions: void 0,
+        backgroundLayers: w2.backgroundLayers
+      });
+      const pick = (src, keys) => keys.filter((k2) => src[k2]).map((k2) => ({ name: k2, color: src[k2] }));
+      return {
+        light: pick(draft.light, ["primary", "secondary", "accent", "primaryHover", "primarySubtle"]),
+        dark: pick(draft.dark, ["primary", "secondary", "accent", "primaryHover", "primarySubtle"])
+      };
+    } catch {
+      return { light: [], dark: [] };
+    }
+  }, [w2.seeds, w2.mode, w2.harmonyMode, w2.saturation, w2.internalContrast, w2.minContrast, w2.keywords, w2.profile, w2.contrastPolicy, w2.foregroundHeuristic, w2.backgroundLayers]);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_context"), subtitle: t("step_context_sub") }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader$1, { title: t("step_context"), subtitle: t("step_context_sub") }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-3", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "text-xs flex flex-col gap-1", title: "Les mots-clés ajustent saturation et contraste interne (heuristiques basiques).", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "flex items-center gap-2", children: t("label_keywords") }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: w2.keywords, onChange: (e2) => w2.setKeywords(e2.target.value), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs", placeholder: "ex: warm, fintech, minimal" })
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[11px] opacity-70 flex items-center gap-1", children: [
+          "Aperçu dynamique (génération réelle lite) ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: "Utilise le moteur de génération avec un sous-ensemble de tokens (sans neutrals & semantics) pour cohérence.", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-6 flex-wrap", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] opacity-60 mb-1", children: "Light" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: preview.light.map((p2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-1", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 h-10 rounded border border-neutral-300/40 bg-white/5", style: { background: p2.color } }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9px] opacity-70", children: p2.name })
+            ] }, "L-" + p2.name)) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] opacity-60 mb-1", children: "Dark" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: preview.dark.map((p2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-1", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 h-10 rounded border border-neutral-700 bg-black/20", style: { background: p2.color } }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9px] opacity-70", children: p2.name })
+            ] }, "D-" + p2.name)) })
+          ] })
+        ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "text-xs flex flex-col gap-1", title: "Le profil applique des deltas sur saturation & contraste (Pastel, Vivid, Nord…).", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "flex items-center gap-2", children: t("label_profile") }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "text-xs flex flex-col gap-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-2", children: [
+          t("label_keywords_simple"),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: t("help_keywords"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: w2.keywords, onChange: (e2) => w2.setKeywords(e2.target.value), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs", placeholder: "ex: vif, pastel, minimal, accessible" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "text-xs flex flex-col gap-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-2", children: [
+          t("label_profile_simple"),
+          " ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: t("help_profile"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: w2.profile || "", onChange: (e2) => w2.setProfile(e2.target.value || null), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "(aucun)" }),
           ["Material", "Fluent", "Nord", "Solarized", "Pastel", "Corporate", "Vivid", "Monochrome"].map((p2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: p2 }, p2))
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 text-[11px] opacity-80", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: !!w2.autosaveEnabled, onChange: (e2) => w2.setAutosaveEnabled(e2.target.checked) }),
+        " Autosave wizard state"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 text-[11px] opacity-80", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: !!w2.autoRegenerate, onChange: () => w2.toggleAutoRegenerate() }),
+        " ",
+        t("label_autoreg"),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: t("help_autoreg"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) })
+      ] }),
+      w2.profile === "Monochrome" && /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1 text-xs max-w-xs", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Stratégie Monochrome (semantics)" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: w2.monochromeSemanticStrategy, onChange: (e2) => w2.setMonochromeSemanticStrategy(e2.target.value), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "restrict", children: "Restrict (success,danger)" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "remove", children: "Remove (aucun)" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "keep", children: "Keep (inchangé)" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 text-xs", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "opacity-70", children: "Presets rapides" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: ["Material", "Nord", "Pastel", "Solarized", "Corporate"].map((p2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.applyPreset(p2), className: "px-2 py-0.5 rounded border border-neutral-700 hover:border-neutral-500", children: p2 }, p2)) })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 text-xs", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "opacity-70", children: "Presets utilisateur" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(UserPresetsManager, {})
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 text-xs", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: async () => {
+              try {
+                const payload = JSON.stringify(w2.userPresets || {}, null, 2);
+                await window?.crimson?.saveText?.(payload, "user-presets.json");
+              } catch {
+              }
+            },
+            className: "self-start px-2 py-0.5 rounded border border-neutral-700 hover:border-neutral-500",
+            children: "Exporter presets (JSON)"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: async () => {
+              try {
+                const txt = await window?.crimson?.openText?.();
+                if (!txt) return;
+                const res = w2.importUserPresets?.(txt);
+                if (!res) {
+                  alert("Import échoué (format invalide)");
+                } else {
+                  alert(`Import: ${res.imported} ajoutés, ${res.skipped} ignorés (doublons), ${res.invalid} invalides`);
+                }
+              } catch (e2) {
+                alert("Erreur import presets");
+              }
+            },
+            className: "mt-1 self-start px-2 py-0.5 rounded border border-neutral-700 hover:border-neutral-500",
+            children: "Importer presets (JSON)"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 text-xs", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "opacity-70", children: "Paramètres effectifs (après heuristiques)" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap gap-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Chip, { label: `sat ${w2.saturation.toFixed(2)} → ${effSat.toFixed(2)}`, changed: effSat !== w2.saturation }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Chip, { label: `intC ${w2.internalContrast.toFixed(2)} → ${effIC.toFixed(2)}`, changed: effIC !== w2.internalContrast }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Chip, { label: `minC ${w2.minContrast.toFixed(2)} → ${effMin.toFixed(2)}`, changed: effMin !== w2.minContrast }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Chip, { label: `policy ${w2.contrastPolicy} → ${effPolicy}`, changed: effPolicy !== w2.contrastPolicy }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Chip, { label: `neutrals ${w2.neutralLevels} → ${effNeutrals}`, changed: effNeutrals !== w2.neutralLevels })
         ] })
       ] })
     ] })
   ] });
 };
+const Chip = ({ label, changed }) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `px-2 py-0.5 rounded border text-[10px] ${changed ? "border-amber-500 text-amber-400" : "border-neutral-700 opacity-70"}`, children: label });
+const UserPresetsManager = () => {
+  const w2 = useNewProjectWizard();
+  const [name, setName] = React$2.useState("");
+  const presets = w2.userPresets || {};
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: name, onChange: (e2) => setName(e2.target.value), placeholder: "nom", className: "px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-[11px] w-32" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => {
+        w2.saveUserPreset(name);
+        setName("");
+      }, className: "px-2 py-0.5 rounded border border-neutral-700 hover:border-neutral-500 text-[11px]", children: "Save" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap gap-1", children: [
+      Object.keys(presets).length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "opacity-50 text-[10px]", children: "(aucun)" }),
+      Object.keys(presets).map((k2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 px-1.5 py-0.5 rounded border border-neutral-700 text-[10px]", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.applyUserPreset(k2), className: "underline decoration-dotted hover:text-amber-400", children: k2 }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.deleteUserPreset(k2), className: "text-red-400 hover:text-red-300", children: "×" })
+      ] }, k2))
+    ] })
+  ] });
+};
+const StepHeader = ({ title, subtitle }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-4", children: [
+  /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", children: title }),
+  subtitle && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs opacity-70 mt-1 leading-snug", children: subtitle })
+] });
+const toHsl = converter("hsl");
+const toRgb = converter("rgb");
+function getHue(hex2) {
+  if (!hex2) return null;
+  const p2 = parse(hex2);
+  if (!p2) return null;
+  const h = toHsl(p2).h;
+  return typeof h === "number" ? (h % 360 + 360) % 360 : null;
+}
+function rotate(hex2, deg) {
+  const p2 = parse(hex2);
+  if (!p2) return hex2;
+  const h = toHsl(p2);
+  h.h = (((h.h || 0) + deg) % 360 + 360) % 360;
+  return formatHex(toRgb(h)) || hex2;
+}
 const StepSeeds = () => {
   const w2 = useNewProjectWizard();
+  const chosen = w2.draft?.meta?.chosenHarmony;
+  const primary = w2.seeds[0];
+  const secondary = w2.seeds[1];
+  const accent = w2.seeds[2];
+  const previewSeeds = reactExports.useMemo(() => {
+    if (!primary) return [];
+    const arr = [{ hex: primary, label: "P" }];
+    if (secondary) arr.push({ hex: secondary, label: "S" });
+    if (accent) arr.push({ hex: accent, label: "A" });
+    if (!secondary || !accent) {
+      const mode = w2.harmonyMode || "auto";
+      const add = (hex2, label) => {
+        if (!arr.find((a) => a.label === label)) arr.push({ hex: hex2, label });
+      };
+      if (mode === "complementary") add(rotate(primary, 180), "S");
+      else if (mode === "triad") {
+        add(rotate(primary, 120), "S");
+        add(rotate(primary, -120), "A");
+      } else if (mode === "analogous") {
+        add(rotate(primary, 30), "S");
+        add(rotate(primary, -30), "A");
+      } else if (mode === "auto") {
+        if (!secondary) add(rotate(primary, 150), "S");
+        if (!accent) add(rotate(primary, -150), "A");
+      }
+    }
+    return arr;
+  }, [primary, secondary, accent, w2.harmonyMode]);
+  const markers = previewSeeds.map((s) => ({ hue: getHue(s.hex) || 0, ...s }));
+  const [editing, setEditing] = reactExports.useState(() => w2.seeds);
+  reactExports.useEffect(() => {
+    setEditing((prev) => {
+      const next = [...prev];
+      w2.seeds.forEach((seed, i) => {
+        if (/^#?[0-9a-fA-F]{6}$/.test(seed)) next[i] = seed;
+        else if (!seed) next[i] = "";
+      });
+      return next;
+    });
+  }, [w2.seeds.join("|")]);
+  const handleTextChange = (idx, raw) => {
+    if (!/^#?[0-9a-fA-F]{0,6}$/.test(raw)) return;
+    setEditing((prev) => {
+      const next = [...prev];
+      next[idx] = raw;
+      return next;
+    });
+    if (/^#?[0-9a-fA-F]{6}$/.test(raw)) {
+      const hex2 = raw.startsWith("#") ? raw : "#" + raw;
+      const arr = [...w2.seeds];
+      arr[idx] = hex2;
+      w2.setSeeds(arr);
+    } else if (raw === "") {
+      const arr = [...w2.seeds];
+      arr[idx] = "";
+      w2.setSeeds(arr);
+    }
+  };
+  const commitOnBlur = (idx) => {
+    const val = editing[idx];
+    if (/^#?[0-9a-fA-F]{3}$/.test(val)) {
+      const v2 = val.replace("#", "");
+      const full = "#" + v2.split("").map((c4) => c4 + c4).join("");
+      const arr = [...w2.seeds];
+      arr[idx] = full;
+      w2.setSeeds(arr);
+      setEditing((ed2) => {
+        const n2 = [...ed2];
+        n2[idx] = full;
+        return n2;
+      });
+    }
+    if (val && !/^#?[0-9a-fA-F]{6}$/.test(val) && !/^#?[0-9a-fA-F]{3}$/.test(val)) {
+      setEditing((ed2) => {
+        const n2 = [...ed2];
+        n2[idx] = w2.seeds[idx] || "";
+        return n2;
+      });
+    }
+  };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_seeds"), subtitle: t("step_seeds_sub") }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap gap-3 items-center", children: [
-      w2.seeds.map((s, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-1", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "color", value: s, onChange: (e2) => {
-          const arr = [...w2.seeds];
-          arr[i] = e2.target.value;
-          w2.setSeeds(arr);
-        }, className: "w-12 h-12 p-0 bg-transparent border border-neutral-700 rounded" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: s, onChange: (e2) => {
-          const arr = [...w2.seeds];
-          arr[i] = e2.target.value;
-          w2.setSeeds(arr);
-        }, className: "w-20 px-1 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-[10px] font-mono" })
-      ] }, i)),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.setSeeds([...w2.seeds, "#3366ff"]), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs", children: t("add_seed") }),
-      w2.seeds.length > 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.setSeeds(w2.seeds.slice(0, -1)), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs", children: t("remove_seed") })
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap gap-4 items-start text-xs", children: [
+      ["Primary", "Secondary", "Accent"].map((label, idx) => {
+        const s = w2.seeds[idx] || (idx === 1 ? w2.seeds[0] : w2.seeds[0]);
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 items-center", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "opacity-70 text-[11px] flex items-center gap-1", children: [
+            label,
+            idx > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: `Auto si vide – dérivé de ${idx === 1 ? "Primary" : "Primary/contrast"}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleLockedSeed?.(idx), className: `ml-1 px-1 rounded border text-[10px] ${w2.lockedSeeds?.[idx] ? "border-amber-500 text-amber-400" : "border-neutral-700 text-neutral-400 hover:border-neutral-500"}`, title: w2.lockedSeeds?.[idx] ? "Déverrouiller seed (permettre ajustements auto)" : "Verrouiller seed (empêcher ajustements auto)", children: w2.lockedSeeds?.[idx] ? "🔒" : "🔓" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "color", value: s && /^#([0-9a-fA-F]{6})$/.test(s) ? s : "#000000", onChange: (e2) => {
+            const arr = [...w2.seeds];
+            arr[idx] = e2.target.value;
+            w2.setSeeds(arr);
+          }, className: "w-12 h-12 p-0 bg-transparent border border-neutral-700 rounded" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: editing[idx] ?? "", placeholder: idx > 0 ? "(auto)" : "", onChange: (e2) => handleTextChange(idx, e2.target.value), onBlur: () => commitOnBlur(idx), className: "w-24 px-1 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-[10px] font-mono" })
+        ] }, idx);
+      }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[11px] opacity-70 flex items-center gap-1", children: [
+          "Harmonie ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: "Détermine les rotations de teinte proposées (triad, complémentaire, analogue). Si 'auto' et secondary/accent non fournis, ils sont générés.", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: w2.harmonyMode || "auto", onChange: (e2) => w2.setHarmonyMode?.(e2.target.value), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-[11px]", children: ["auto", "complementary", "triad", "analogous"].map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: h, children: h }, h)) }),
+        w2.harmonyMode === "auto" && chosen && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[10px] mt-1 px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 flex items-center gap-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "opacity-60", children: "Auto →" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium text-amber-400", children: chosen }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: "Sélection automatique basée sur profil & mots-clés.", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) })
+        ] })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 flex-wrap", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[11px] opacity-70 flex items-center gap-1", children: [
+          "Aperçu Teinte ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: "Visualisation des rotations d'harmonie. Les points représentent Primary (P), Secondary (S) et Accent (A).", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "relative w-40 h-40 rounded-full border border-neutral-700", style: { background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }, children: markers.map((m2) => {
+          const angle = m2.hue / 360 * Math.PI * 2;
+          const r2 = 70;
+          const cx = 80 + Math.sin(angle) * r2;
+          const cy = 80 - Math.cos(angle) * r2;
+          return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute flex items-center justify-center text-[10px] font-bold", style: { left: cx, top: cy, width: 16, height: 16, marginLeft: -8, marginTop: -8, background: m2.hex, color: "#000", border: "1px solid #111", borderRadius: "50%" }, title: `${m2.label}: ${m2.hex}`, children: m2.label }, m2.label);
+        }) })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-xs text-[11px] opacity-70 leading-snug", children: "Les positions montrent l'espacement de teinte. Modifier l'harmonie ou les couleurs ajuste la distribution. Conserver un bon écart aide à éviter la confusion entre les rôles." })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-3 text-xs", children: ["single", "dual", "triad", "mono"].map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.setMode(m2), className: `px-2 py-1 rounded border text-xs ${w2.mode === m2 ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: m2 }, m2)) })
   ] });
@@ -12777,27 +13446,43 @@ const StepOptions = () => {
     /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_options"), subtitle: t("step_options_sub") }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-4 text-xs", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1", children: [
-        t("saturation"),
+        t("label_saturation_simple"),
+        " ",
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: t("help_saturation"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "Saturation", type: "range", min: 0, max: 1, step: 0.01, value: w2.saturation, onChange: (e2) => w2.setSaturation(parseFloat(e2.target.value)), "aria-valuemin": 0, "aria-valuemax": 1, "aria-valuenow": w2.saturation }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { className: "w-14 px-1 py-0.5 text-right rounded bg-neutral-800 border border-neutral-700 text-[11px]", type: "number", min: 0, max: 1, step: 0.01, value: w2.saturation, onChange: (e2) => w2.setSaturation(parseFloat(e2.target.value) || 0) })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { className: "w-14 px-1 py-0.5 text-right rounded bg-neutral-800 border border-neutral-700 text-[11px]", type: "number", min: 0, max: 1, step: 0.01, value: w2.saturation, onChange: (e2) => w2.setSaturation(parseFloat(e2.target.value) || 0) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-1", children: [0.5, 0.85, 1].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-5 h-5 rounded border border-neutral-600", style: { background: mix("#888888", w2.seeds[0] || "#990000", v2) }, title: `Prévisualisation ${v2}` }, v2)) })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1", children: [
-        t("internal_contrast"),
+        t("label_internal_contrast_simple"),
+        " ",
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: t("help_internal_contrast"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "Contraste interne", type: "range", min: 0, max: 1, step: 0.01, value: w2.internalContrast, onChange: (e2) => w2.setInternalContrast(parseFloat(e2.target.value)), "aria-valuemin": 0, "aria-valuemax": 1, "aria-valuenow": w2.internalContrast }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { className: "w-14 px-1 py-0.5 text-right rounded bg-neutral-800 border border-neutral-700 text-[11px]", type: "number", min: 0, max: 1, step: 0.01, value: w2.internalContrast, onChange: (e2) => w2.setInternalContrast(parseFloat(e2.target.value) || 0) })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { className: "w-14 px-1 py-0.5 text-right rounded bg-neutral-800 border border-neutral-700 text-[11px]", type: "number", min: 0, max: 1, step: 0.01, value: w2.internalContrast, onChange: (e2) => w2.setInternalContrast(parseFloat(e2.target.value) || 0) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-1", children: ["Hover", "Active", "Subtle"].map((k2) => {
+            const base = w2.seeds[0] || "#990000";
+            let color = base;
+            if (k2 === "Hover") color = lighten(base, 0.1 + 0.06 * w2.internalContrast);
+            if (k2 === "Active") color = darken(base, 0.12 + 0.06 * w2.internalContrast);
+            if (k2 === "Subtle") color = mix("#ffffff", base, 0.15 + 0.05 * w2.internalContrast);
+            return /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-5 h-5 rounded border border-neutral-600", style: { background: color }, title: k2 }, k2);
+          }) })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1 col-span-2", children: [
-        t("neutral_levels"),
+        t("label_neutral_levels_simple"),
+        " ",
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: t("help_neutral_levels"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: w2.neutralLevels, onChange: (e2) => w2.setNeutralLevels(Number(e2.target.value)), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700", children: [5, 7, 9, 12].map((n2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: n2, children: n2 }, n2)) })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 col-span-2", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: w2.includeSemantic, onChange: () => w2.toggleSemantic() }),
         " ",
-        t("include_semantic")
+        t("label_semantics_include"),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: t("help_semantics_include"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 col-span-2", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: w2.generateNeutrals, onChange: (e2) => w2.setGenerateNeutrals(e2.target.checked) }),
@@ -12805,8 +13490,40 @@ const StepOptions = () => {
         t("generate_neutrals")
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mb-1", children: t("variant_scope") }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-1 flex items-center gap-2", children: [
+          t("label_variant_scope_simple"),
+          " ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: t("help_variant_scope"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: ["primary", "success", "danger", "warning", "info"].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleVariant(v2), className: `px-2 py-0.5 rounded border text-[11px] ${w2.variantScope.includes(v2) ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: v2 }, v2)) })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2 space-y-2 border-t border-neutral-800 pt-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-[11px] opacity-80", children: "Overlay" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: !!w2.overlayOptions?.enable, onChange: (e2) => w2.setOverlayOptions({ ...w2.overlayOptions || { opacity: 0.5, blend: "overlay" }, enable: e2.target.checked }) }),
+          " Enable overlay token"
+        ] }),
+        w2.overlayOptions?.enable && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 flex-wrap", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1", children: [
+            "Opacity",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "range", min: 0, max: 1, step: 0.01, value: w2.overlayOptions.opacity, onChange: (e2) => w2.setOverlayOptions({ ...w2.overlayOptions, opacity: parseFloat(e2.target.value) }) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1", children: [
+            "Blend",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: w2.overlayOptions.blend, onChange: (e2) => w2.setOverlayOptions({ ...w2.overlayOptions, blend: e2.target.value }), className: "px-1 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-[11px]", children: ["overlay", "multiply", "screen", "soft-light"].map((b) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: b }, b)) })
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2 space-y-2 border-t border-neutral-800 pt-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 font-semibold text-[11px] opacity-80", children: [
+          "Background layers ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.addBackgroundLayer("layer"), className: "px-1.5 py-0.5 rounded border border-neutral-700 text-[10px]", children: "+" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: (w2.backgroundLayers || []).map((l2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 border border-neutral-700 rounded px-1.5 py-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: l2.role, onChange: (e2) => w2.updateBackgroundLayer(l2.id, { role: e2.target.value }), className: "w-16 bg-neutral-800 border border-neutral-700 rounded px-1 py-0.5 text-[10px]" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.removeBackgroundLayer(l2.id), className: "text-red-400 text-[10px]", children: "×" })
+        ] }, l2.id)) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] opacity-50", children: "Les couches modifient subtlement le background via mix primaire." })
       ] })
     ] })
   ] });
@@ -12826,10 +13543,36 @@ const StepAccessibility = () => {
         ":1"
       ] })
     ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-2 text-xs max-w-xs", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1", children: [
+        "Contrast policy",
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: w2.contrastPolicy, onChange: (e2) => w2.setContrastPolicy(e2.target.value), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "wcagAA", children: "WCAG AA" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "wcagAAA", children: "WCAG AAA" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "custom", children: "Custom" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1", children: [
+        "Foreground heuristic",
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: w2.foregroundHeuristic, onChange: (e2) => w2.setForegroundHeuristic(e2.target.value), className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "auto", children: "Auto" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "luminance", children: "Luminance" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "deltaE", children: "ΔE" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: w2.highContrastMode, onChange: () => useNewProjectWizard.setState((s) => ({ highContrastMode: !s.highContrastMode })) }),
+        " High contrast mode"
+      ] })
+    ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 text-xs", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: w2.enforceSemanticDistance, onChange: (e2) => w2.setEnforceSemanticDistance(e2.target.checked) }),
       " ",
       t("enforce_semantic_distance", { threshold: w2.distanceThreshold })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1 text-xs max-w-xs", children: [
+      "ΔE Distance (semantic)",
+      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "range", min: 2, max: 20, step: 1, value: w2.distanceThreshold, onChange: (e2) => w2.setDistanceThreshold(parseInt(e2.target.value, 10)) })
     ] })
   ] });
 };
@@ -12909,6 +13652,11 @@ const StepSummary = () => {
     else unchanged.push(k2);
   });
   const [showDiff, setShowDiff] = React$2.useState(false);
+  const [warningFilter, setWarningFilter] = React$2.useState("all");
+  const filteredWarnings = warnings.filter((m2) => {
+    if (warningFilter === "all") return true;
+    return m2.startsWith(`[${warningFilter}]`);
+  });
   const bg2 = draftLight.background || "#ffffff";
   const tokensForNearest = Object.entries(draftLight).filter(([k2]) => !k2.endsWith("Fg") && k2 !== "background");
   const nearestCache = {};
@@ -12962,6 +13710,10 @@ const StepSummary = () => {
       ": ",
       Object.keys(w2.draft?.light || {}).length
     ] }),
+    w2.profile === "Monochrome" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-2 text-[10px]", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "px-2 py-0.5 rounded border border-neutral-700 bg-neutral-800/40", children: [
+      "Monochrome: ",
+      w2.monochromeSemanticStrategy
+    ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[11px] flex gap-2 flex-wrap", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setShowDiff((s) => !s), className: "px-2 py-0.5 rounded border border-neutral-700 bg-neutral-800 hover:border-neutral-500", children: showDiff ? t("hide_diff") : t("show_diff") }),
       showDiff && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-2", children: [
@@ -12985,9 +13737,12 @@ const StepSummary = () => {
       unchanged.length > 0 && renderList(unchanged, "unchanged", "text-neutral-300")
     ] }),
     (warnings.length > 0 || notes.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2 text-[11px]", children: [
-      warnings.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-red-700/60 bg-red-900/20 rounded p-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-red-300 mb-1", children: t("warnings") }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "list-disc pl-4 space-y-0.5", children: warnings.map((m2, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: m2 }, i)) })
+      warnings.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-red-700/60 bg-red-900/20 rounded p-2 space-y-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-red-300", children: t("warnings") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1 text-[10px]", children: ["all", "collision", "distance", "variant", "policy", "accessible"].map((f2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setWarningFilter(f2), className: `px-1.5 py-0.5 rounded border ${warningFilter === f2 ? "border-amber-500 text-amber-300" : "border-neutral-600 hover:border-neutral-400"}`, children: f2 }, f2)) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "list-disc pl-4 space-y-0.5", children: filteredWarnings.map((m2, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: m2 }, i)) })
       ] }),
       notes.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-amber-600/50 bg-amber-900/10 rounded p-2", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-amber-300 mb-1", children: t("notes") }),
@@ -13018,23 +13773,45 @@ const StepSimulation = () => {
     { key: "protanopia", label: "Protanopia" },
     { key: "deuteranopia", label: "Deuteranopia" },
     { key: "tritanopia", label: "Tritanopia" }
+    // grayscale simulated inline (not stored in cvdSimulations; quick add via local mapping below)
   ];
   const light = w2.draft?.light || {};
   const sampleKeys = Object.keys(light).filter((k2) => !k2.endsWith("Fg")).slice(0, 24);
+  const showGray = !!w2.showGrayscaleSim;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: t("step_preview"), subtitle: t("step_preview_sub") }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-3 flex-wrap text-xs", children: modes2.map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleSimulation(m2.key), className: `px-2 py-1 rounded border ${w2.cvdSimulations?.[m2.key] ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: m2.label }, m2.key)) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid md:grid-cols-3 gap-4 text-[10px]", children: modes2.filter((m2) => w2.cvdSimulations?.[m2.key]).map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-neutral-300", children: m2.label }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-2", children: sampleKeys.map((k2) => {
-        const orig = light[k2];
-        const sim = simulateCvd(orig, m2.key);
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 p-1 rounded border border-neutral-700", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-6 rounded", style: { background: sim } }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate", title: k2, children: k2 })
-        ] }, k2 + m2.key);
-      }) })
-    ] }, m2.key)) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 flex-wrap text-xs", children: [
+      modes2.map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleSimulation(m2.key), className: `px-2 py-1 rounded border ${w2.cvdSimulations?.[m2.key] ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: m2.label }, m2.key)),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleShowGrayscale(), className: `px-2 py-1 rounded border ${showGray ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: "Grayscale" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid md:grid-cols-3 gap-4 text-[10px]", children: [
+      modes2.filter((m2) => w2.cvdSimulations?.[m2.key]).map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-neutral-300", children: m2.label }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-2", children: sampleKeys.map((k2) => {
+          const orig = light[k2];
+          const sim = simulateCvd(orig, m2.key);
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 p-1 rounded border border-neutral-700", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-6 rounded", style: { background: sim } }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate", title: k2, children: k2 })
+          ] }, k2 + m2.key);
+        }) })
+      ] }, m2.key)),
+      showGray && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-neutral-300", children: "Grayscale" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-2", children: sampleKeys.map((k2) => {
+          const orig = light[k2];
+          const m2 = /#?([0-9a-fA-F]{6})/.exec(orig)?.[1] || "000000";
+          const n2 = parseInt(m2, 16);
+          const r2 = n2 >> 16 & 255, g = n2 >> 8 & 255, b = n2 & 255;
+          const L2 = Math.round(0.2126 * r2 + 0.7152 * g + 0.0722 * b);
+          const gray = `#${[L2, L2, L2].map((v2) => v2.toString(16).padStart(2, "0")).join("")}`;
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 p-1 rounded border border-neutral-700", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-6 rounded", style: { background: gray } }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate", title: k2, children: k2 })
+          ] }, k2 + "gray");
+        }) })
+      ] })
+    ] }),
     !modes2.some((m2) => w2.cvdSimulations?.[m2.key]) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[11px] opacity-60", children: "Sélectionnez au moins un mode pour voir la simulation." })
   ] });
 };
@@ -13054,6 +13831,10 @@ const StepComponentsPreview = () => {
   const border = get(pal, "border", "#cccccc");
   const info = get(pal, "info", "#3b82f6");
   const radius = 4;
+  const focusRing = get(pal, "focusRing", lighten(primary, 0.2) || primary);
+  const selectionBg = get(pal, "selectionBg", mix(bg2, primary, 0.2));
+  const selectionFg = get(pal, "selectionFg", get(pal, "text", "#111111"));
+  const selectionBgHover = get(pal, "selectionBgHover", mix(selectionBg, primary, 0.2));
   const cardStyle = { background: surface, border: `1px solid ${border}`, borderRadius: radius, padding: "12px", display: "flex", flexDirection: "column", gap: 8 };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: "Components", subtitle: "Aperçu micro UI avec tokens actuels (light)." }),
@@ -13091,7 +13872,54 @@ const StepComponentsPreview = () => {
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { opacity: 0.7 }, children: "Label" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("input", { placeholder: "Saisir…", style: { background: surface, color: text, border: `1px solid ${border}`, padding: "6px 8px", borderRadius: radius, fontSize: 12 } })
         ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: cardStyle, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs font-semibold opacity-70", children: "Focus & Sélection" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            style: {
+              position: "relative",
+              background: primary,
+              color: primaryFg,
+              border: "none",
+              padding: "6px 12px",
+              fontSize: 12,
+              borderRadius: radius,
+              boxShadow: `0 0 0 2px ${bg2}, 0 0 0 4px ${focusRing}`
+            },
+            children: "Bouton focus"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", fontSize: 11 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { background: selectionBg, color: selectionFg, padding: "4px 8px", borderRadius: radius }, children: "Selection" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { background: selectionBgHover, color: selectionFg, padding: "4px 8px", borderRadius: radius }, children: "Selection Hover" })
+        ] })
       ] })
+    ] })
+  ] });
+};
+const StepSemantics = () => {
+  const w2 = useNewProjectWizard();
+  const base = ["success", "danger", "warning", "info"];
+  const extras = ["focusRing", "selectionBg", "selectionFg"];
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(StepHeader, { title: "Sémantiques", subtitle: "Activer / ajuster les couleurs de statut et leur différence." }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs space-y-2", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: base.map((tok) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleSemanticToken(tok), className: `px-2 py-1 rounded border text-[11px] ${w2.semanticsTokens.includes(tok) ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: tok }, tok)) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-2 text-[11px] font-semibold opacity-80", children: "Extra tokens" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: extras.map((tok) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => w2.toggleExtraToken(tok), className: `px-2 py-1 rounded border text-[11px] ${w2.extraTokens?.includes(tok) ? "border-amber-500 text-amber-400" : "border-neutral-700"}`, children: tok }, tok)) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex flex-col gap-1 max-w-[240px]", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[11px] flex items-center gap-1", children: [
+          t("label_distance_threshold"),
+          ": ",
+          w2.distanceThreshold,
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Tooltip, { label: t("help_distance_threshold"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-help text-neutral-400", children: "?" }) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "range", min: 2, max: 20, step: 1, value: w2.distanceThreshold, onChange: (e2) => w2.setDistanceThreshold(parseInt(e2.target.value, 10)) })
+      ] }),
+      !w2.enforceSemanticDistance && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] opacity-60", children: "Ajustements désactivés (cocher dans Accessibilité)." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] opacity-50 leading-snug", children: "Les couleurs sont maintenant dérivées plus légèrement (rotation de teinte sans forcer saturation/luminosité) pour éviter des écarts trop artificiels." })
     ] })
   ] });
 };
@@ -13100,26 +13928,82 @@ const NewProjectWizard = () => {
   const { step } = wizard;
   const regenerate = () => {
     const adj = wizard.getAdjustedParams ? wizard.getAdjustedParams() : { saturation: wizard.saturation, internalContrast: wizard.internalContrast };
+    const kw = wizard.keywords.toLowerCase().split(/[\s,]+/).filter(Boolean);
+    let saturation = adj.saturation;
+    let internalContrast = adj.internalContrast;
+    let minContrast = wizard.highContrastMode ? Math.max(7, wizard.minContrast) : wizard.minContrast;
+    let contrastPolicy = wizard.contrastPolicy;
+    let includeSemantic = wizard.includeSemantic;
+    let semanticsTokens = [...wizard.semanticsTokens];
+    let neutralLevels = wizard.neutralLevels;
+    const extraNotes = [];
+    if (kw.includes("accessible") || kw.includes("highcontrast")) {
+      const originalPolicy = contrastPolicy;
+      minContrast = Math.max(minContrast, 7);
+      contrastPolicy = "wcagAAA";
+      internalContrast = Math.min(1, internalContrast + 0.05);
+      extraNotes.push("[accessible] minContrast>=7 & AAA");
+      if (originalPolicy !== contrastPolicy) extraNotes.push("[policy] contrastPolicy forcé -> wcagAAA");
+    }
+    if (wizard.profile === "Monochrome") {
+      saturation = Math.max(0, saturation - 0.5);
+      neutralLevels = neutralLevels < 9 ? 9 : neutralLevels;
+      switch (wizard.monochromeSemanticStrategy) {
+        case "restrict":
+          includeSemantic = true;
+          semanticsTokens = semanticsTokens.filter((t2) => ["success", "danger"].includes(t2));
+          extraNotes.push("[profile] Monochrome restrict: success/danger uniquement");
+          break;
+        case "remove":
+          includeSemantic = false;
+          semanticsTokens = [];
+          extraNotes.push("[profile] Monochrome remove: semantics désactivés");
+          break;
+        case "keep":
+          extraNotes.push("[profile] Monochrome keep: semantics conservés");
+          break;
+      }
+    }
+    if (wizard.highContrastMode) {
+      internalContrast = Math.min(1, internalContrast + 0.1);
+      extraNotes.push("[mode] HighContrast: internalContrast +0.1");
+    }
     const draft = generatePalette({
       seeds: wizard.seeds,
       mode: wizard.mode,
-      saturation: adj.saturation,
-      internalContrast: adj.internalContrast,
-      neutralLevels: wizard.neutralLevels,
-      includeSemantic: wizard.includeSemantic,
+      harmonyMode: wizard.harmonyMode,
+      lockedSeeds: wizard.lockedSeeds,
+      saturation,
+      internalContrast,
+      neutralLevels,
+      includeSemantic,
+      semanticsTokens,
+      extraTokens: wizard.extraTokens,
       variantScope: wizard.variantScope,
-      minContrast: wizard.minContrast,
+      minContrast,
       generateNeutrals: wizard.generateNeutrals,
       enforceSemanticDistance: wizard.enforceSemanticDistance,
       distanceThreshold: wizard.distanceThreshold,
       baseKeywords: wizard.keywords,
-      profile: wizard.profile
+      profile: wizard.profile,
+      contrastPolicy,
+      foregroundHeuristic: wizard.foregroundHeuristic,
+      overlayOptions: wizard.overlayOptions,
+      backgroundLayers: wizard.backgroundLayers
     });
+    if (draft.meta) {
+      draft.meta.notes = [...draft.meta.notes, ...extraNotes];
+    }
     wizard.setDraft(draft);
   };
   React$2.useEffect(() => {
     if (!wizard.draft || Object.keys(wizard.draft.light).length === 0) regenerate();
   }, []);
+  React$2.useEffect(() => {
+    if (!wizard.autoRegenerate) return;
+    const handle = setTimeout(() => regenerate(), 220);
+    return () => clearTimeout(handle);
+  }, [wizard.seeds.join(","), wizard.mode, wizard.saturation, wizard.internalContrast, wizard.neutralLevels, wizard.includeSemantic, wizard.variantScope.join(","), wizard.minContrast, wizard.distanceThreshold, wizard.keywords, wizard.profile, wizard.contrastPolicy, wizard.foregroundHeuristic, wizard.highContrastMode, wizard.monochromeSemanticStrategy]);
   const stepRender = {
     context: /* @__PURE__ */ jsxRuntimeExports.jsx(StepContext, {}),
     seeds: /* @__PURE__ */ jsxRuntimeExports.jsx(StepSeeds, {}),
@@ -13127,7 +14011,7 @@ const NewProjectWizard = () => {
     accessibility: /* @__PURE__ */ jsxRuntimeExports.jsx(StepAccessibility, {}),
     themes: /* @__PURE__ */ jsxRuntimeExports.jsx(StepThemes, {}),
     naming: /* @__PURE__ */ jsxRuntimeExports.jsx(StepNaming, {}),
-    semantics: /* @__PURE__ */ jsxRuntimeExports.jsx(StepOptions, {}),
+    semantics: /* @__PURE__ */ jsxRuntimeExports.jsx(StepSemantics, {}),
     simulation: /* @__PURE__ */ jsxRuntimeExports.jsx(StepSimulation, {}),
     components: /* @__PURE__ */ jsxRuntimeExports.jsx(StepComponentsPreview, {}),
     preview: /* @__PURE__ */ jsxRuntimeExports.jsx(StepPreview, {}),
@@ -13136,17 +14020,62 @@ const NewProjectWizard = () => {
   const minimalHidden = /* @__PURE__ */ new Set(["accessibility", "simulation", "semantics"]);
   const visibleSteps = wizard.minimalMode ? wizard.steps.filter((s) => !minimalHidden.has(s)) : wizard.steps;
   const dialogRef = React$2.useRef(null);
-  useFocusTrap(dialogRef, wizard.open, () => wizard.closeWizard());
+  const closeWizard = React$2.useCallback(() => wizard.closeWizard(), [wizard]);
+  useFocusTrap(dialogRef, wizard.open, closeWizard);
+  const appTheme = usePaletteStore((s) => s.theme);
   const warnings = wizard.draft?.meta?.warnings || [];
-  return wizard.open ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "fixed inset-0 z-50 flex", role: "dialog", "aria-modal": "true", "aria-label": t("wizard_title"), "aria-describedby": "wizard-steps", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-0 bg-black/60 backdrop-blur-sm", onClick: () => wizard.closeWizard() }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: dialogRef, className: "relative w-[880px] max-w-full mx-auto my-8 bg-neutral-950/90 border border-neutral-800 rounded-lg shadow-xl flex flex-col overflow-hidden", tabIndex: -1, children: [
+  const palStore = usePaletteStore.getState();
+  const activeCurrent = palStore.theme === "dark" ? palStore.palettes.dark : palStore.palettes.light;
+  const activeDraft = wizard.draft ? palStore.theme === "dark" ? wizard.draft.dark : wizard.draft.light : null;
+  const diff = React$2.useMemo(() => {
+    if (!activeDraft) return null;
+    return comparePalettes(activeCurrent, activeDraft);
+  }, [activeDraft, activeCurrent]);
+  const [showDiff, setShowDiff] = React$2.useState(false);
+  const [includeNeutrals, setIncludeNeutrals] = React$2.useState(false);
+  React$2.useMemo(() => {
+    if (!diff || !activeDraft) return null;
+    const filter = (k2) => {
+      if (includeNeutrals) return true;
+      return !/^neutral|^background$|^surface$|^border$/.test(k2);
+    };
+    const added = diff.added.filter(filter);
+    const removed = diff.removed.filter(filter);
+    const changed = diff.changed.filter(filter);
+    const rows = [];
+    added.forEach((t2) => rows.push({ type: "added", token: t2, new: activeDraft[t2] }));
+    removed.forEach((t2) => rows.push({ type: "removed", token: t2, old: activeCurrent[t2] }));
+    changed.forEach((t2) => rows.push({ type: "changed", token: t2, old: activeCurrent[t2], new: activeDraft[t2] }));
+    rows.sort((a, b) => a.token.localeCompare(b.token));
+    return { added, removed, changed, rows };
+  }, [diff, includeNeutrals, activeDraft, activeCurrent]);
+  const categorize = (w2) => {
+    if (w2.startsWith("[collision]")) return "semantics";
+    if (w2.startsWith("[distance]")) return "semantics";
+    if (w2.startsWith("[variant]")) return "semantics";
+    if (w2.startsWith("[contrast]")) return "accessibility";
+    if (w2.startsWith("[accessible]")) return "accessibility";
+    if (w2.startsWith("[policy]")) return "accessibility";
+    return "other";
+  };
+  const warningCountFor = (stepName) => {
+    if (stepName === "summary") return warnings.length;
+    if (stepName === "semantics") return warnings.filter((w2) => categorize(w2) === "semantics").length;
+    if (stepName === "accessibility") return warnings.filter((w2) => categorize(w2) === "accessibility").length;
+    return 0;
+  };
+  const showHero = step === "context";
+  return wizard.open ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "fixed inset-0 z-50 flex", role: "dialog", "aria-modal": "true", "aria-label": t("wizard_title"), "aria-describedby": "wizard-steps", "data-theme": appTheme, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-0 bg-black/60 backdrop-blur-sm", onClick: closeWizard }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: dialogRef, tabIndex: -1, className: `relative w-[880px] max-w-full mx-auto my-8 border rounded-lg shadow-xl flex flex-col overflow-hidden transition-colors
+        ${appTheme === "light" ? "bg-white/90 border-neutral-300 text-neutral-800" : "bg-neutral-950/90 border-neutral-800 text-neutral-200"}`, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-3 border-b border-neutral-800 flex items-center gap-3", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "font-semibold text-sm", children: t("wizard_title") }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "font-semibold text-sm flex items-center gap-3", children: t("wizard_title") }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { id: "wizard-steps", className: "flex gap-1 flex-wrap text-[10px]", children: visibleSteps.map((s) => {
           const current = wizard.step === s;
           let badge2 = null;
-          if (warnings.length && (s === "accessibility" || s === "summary")) badge2 = String(warnings.length);
+          const wc2 = warningCountFor(s);
+          if (wc2) badge2 = String(wc2);
           return /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "button",
             {
@@ -13161,21 +14090,46 @@ const NewProjectWizard = () => {
             s
           );
         }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex gap-1", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.toggleMinimalMode(), className: "px-2 py-1 rounded text-[11px] bg-neutral-800 border border-neutral-700 hover:border-neutral-500", children: wizard.minimalMode ? "Mode Complet" : "Mode Minimal" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => regenerate(), className: "px-2 py-1 rounded text-[11px] bg-neutral-800 border border-neutral-700 hover:border-neutral-500", children: t("regenerate") }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.closeWizard(), className: "px-2 py-1 rounded text-[11px] bg-neutral-800 border border-neutral-700 hover:border-neutral-500", children: t("close") })
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex items-center gap-3", children: [
+          diff && /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setShowDiff(true), className: "text-[10px] font-mono px-2 py-1 rounded border border-neutral-700 flex items-center gap-2 hover:border-neutral-500", title: `Cliquez pour détails diff
+Ajoutés: ${diff.added.length}
+Modifiés: ${diff.changed.length}
+Supprimés: ${diff.removed.length}`, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-emerald-400", children: [
+              "+",
+              diff.added.length
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-amber-400", children: [
+              "~",
+              diff.changed.length
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-red-400", children: [
+              "-",
+              diff.removed.length
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.toggleMinimalMode(), className: "px-2 py-1 rounded text-[11px] bg-neutral-800/40 dark:bg-neutral-800 border border-neutral-700 hover:border-neutral-500", children: wizard.minimalMode ? "Mode Complet" : "Mode Minimal" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => regenerate(), className: "px-2 py-1 rounded text-[11px] bg-primarySubtle text-primaryFg border border-primary/40 hover:border-primary", children: t("regenerate") }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: closeWizard, className: "px-2 py-1 rounded text-[11px] bg-neutral-800/40 dark:bg-neutral-800 border border-neutral-700 hover:border-neutral-500", children: t("close") })
+          ] })
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 overflow-auto p-6 space-y-6 text-neutral-200 text-sm", children: stepRender[step] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-3 border-t border-neutral-800 flex items-center gap-2 text-xs bg-neutral-900/60", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-auto p-6 space-y-6 text-sm", children: [
+        showHero && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center text-center gap-4 mb-4", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatedLogo, { size: 140 }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-neutral-400 max-w-md", children: "Générez une base de palette à partir de vos graines et ajustez les paramètres. L’animation du logo n’apparaît que sur cette première étape pour limiter la distraction." })
+        ] }),
+        stepRender[step]
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `px-4 py-3 border-t flex items-center gap-2 text-xs ${appTheme === "light" ? "border-neutral-200 bg-neutral-50/70" : "border-neutral-800 bg-neutral-900/60"}`, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.prev(), disabled: wizard.step === visibleSteps[0], className: "px-3 py-1 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-40", children: t("previous") }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.next(), disabled: wizard.step === visibleSteps[visibleSteps.length - 1], className: "px-3 py-1 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-40", children: t("next") })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.prev(), disabled: wizard.step === visibleSteps[0], className: "px-3 py-1 rounded bg-neutral-800/40 dark:bg-neutral-800 border border-neutral-700 disabled:opacity-40", children: t("previous") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.next(), disabled: wizard.step === visibleSteps[visibleSteps.length - 1], className: "px-3 py-1 rounded bg-neutral-800/40 dark:bg-neutral-800 border border-neutral-700 disabled:opacity-40", children: t("next") })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.undo(), disabled: !wizard.history.length, className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-30", children: t("undo") }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.redo(), disabled: !wizard.future.length, className: "px-2 py-1 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-30", children: t("redo") })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.undo(), disabled: !wizard.history.length, className: "px-2 py-1 rounded bg-neutral-800/40 dark:bg-neutral-800 border border-neutral-700 disabled:opacity-30", children: t("undo") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => wizard.redo(), disabled: !wizard.future.length, className: "px-2 py-1 rounded bg-neutral-800/40 dark:bg-neutral-800 border border-neutral-700 disabled:opacity-30", children: t("redo") })
         ] })
       ] })
     ] })
@@ -13295,6 +14249,12 @@ const App = () => {
         }
         return;
       }
+      if (e2.key.toLowerCase() === "n") {
+        e2.preventDefault();
+        openWizard();
+        setTab("palette");
+        return;
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -13332,6 +14292,10 @@ const App = () => {
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
         sandboxActive && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs px-2 py-1 rounded bg-warningSubtle text-warningFg border border-warning/40 animate-pulse", title: "Sandbox actif – modifications non appliquées", children: "Sandbox" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn btn-primary", onClick: () => {
+          openWizard();
+          setTab("palette");
+        }, title: t("new_project"), children: t("new_project") }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn", title: "Aide / Revoir l'onboarding", onClick: () => showOnboarding(), children: "?" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-flex rounded overflow-hidden", role: "group", "aria-label": "Choix du thème", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(

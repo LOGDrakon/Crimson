@@ -17,6 +17,7 @@ Application Electron multiplateforme pour générer, analyser et exporter des pa
 11. Scripts NPM
 12. Roadmap (idées futures)
 13. Notes techniques (ΔE & Mode Auto)
+14. Logo animé & UX
 
 ---
 ## 1. Objectifs & Valeur
@@ -207,3 +208,28 @@ Seuils suggérés (guidelines internes):
 Prochaines améliorations possibles:
 - Support CIEDE2000 (plus coûteux mais plus standardisé)
 - Paramétrage utilisateur des seuils ΔE
+
+---
+## 14. Logo animé & UX
+L'animation du logo Crimson est utilisée de façon mesurée pour ajouter du caractère sans distraire:
+
+Points d'intégration actuels:
+- Splash screen (production uniquement) : affiché jusqu'au chargement de la fenêtre principale.
+- Assistant Nouveau Projet (étape "context") : hero introductif avec apparition douce.
+- Panneau d'Export : overlay de micro‑interaction pendant la génération multi‑fichiers.
+
+Composant:
+- `AnimatedLogo` (React) charge l'`SVG` animé depuis `assets/temp/crimson_icon_animated.svg` avec fallback statique & respect de `prefers-reduced-motion`.
+
+Bonnes pratiques appliquées:
+- Animation limitée aux moments de transition (chargement / introduction / action ponctuelle).
+- Fallback sans mouvement en mode réduction de mouvement.
+- L'animation n'est pas répétée sur toutes les étapes du wizard pour minimiser la fatigue visuelle.
+
+Désactiver le splash:
+```
+CRIMSON_NO_SPLASH=1 npm run build
+```
+
+Optimisation future potentielle:
+- Remplacement du script SVGator par une version keyframes CSS plus légère si besoin de réduire la taille initiale.

@@ -29,9 +29,12 @@ export function useFocusTrap(ref: React.RefObject<HTMLElement>, active: boolean,
       }
     }
     document.addEventListener('keydown', handleKey)
-    // Focus first element when opening
-    const list = getFocusable()
-    if (list[0]) list[0].focus()
+    // Focus only on initial open (use attribute flag to avoid refocus on every state change)
+    if (!root.hasAttribute('data-trap-init')) {
+      root.setAttribute('data-trap-init','true')
+      const list = getFocusable()
+      if (list[0]) list[0].focus()
+    }
     return () => {
       document.removeEventListener('keydown', handleKey)
     }

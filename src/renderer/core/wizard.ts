@@ -1,9 +1,12 @@
 import { formatHex, parse, converter } from 'culori'
 import { ensureContrast, mix, lighten, darken, luminance, contrastRatio, deltaE } from './palette'
+import { pickAutoHarmony, adjustSeed as adjustSeedProfile, ensureSeparation, deriveHarmonySeeds, HarmonyKind } from './profileAdjust'
 
 export interface GenerationParams {
   seeds: string[]
   mode: 'single' | 'dual' | 'triad' | 'mono'
+  harmonyMode?: 'auto' | 'complementary' | 'triad' | 'analogous'
+  lockedSeeds?: boolean[]
   saturation: number
   internalContrast: number
   neutralLevels: 5 | 7 | 9 | 12
@@ -26,7 +29,7 @@ export interface GenerationParams {
 export interface GeneratedResult {
   light: Record<string,string>
   dark: Record<string,string>
-  meta: { warnings: string[], notes: string[], metrics?: Record<string, number> }
+  meta: { warnings: string[], notes: string[], metrics?: Record<string, number>, chosenHarmony?: string }
 }
 
 const toHsl = converter('hsl') as any
@@ -42,21 +45,48 @@ function adjustSaturation(hex: string, sat: number) {
   return formatHex(toRgb(h)) || hex
 }
 
-function deriveSeeds(params: GenerationParams): string[] {
-  const base = params.seeds[0] || '#990000'
-  const p = parse(base)
-  if (!p) return [base]
+function rotate(hex: string, deg: number) {
+  const p = parse(hex); if (!p) return hex
   const h = toHsl(p)
-  const mk = (d: number) => {
-    const clone: any = { ...h }
-    clone.h = (((clone.h || 0) + d) % 360 + 360) % 360
-    return formatHex(toRgb(clone)) || base
+  h.h = (((h.h || 0) + deg) % 360 + 360) % 360
+  return formatHex(toRgb(h)) || hex
+}
+
+function deriveSeeds(params: GenerationParams, notes: string[]): { seeds: string[]; chosenHarmony?: HarmonyKind } {
+  const baseRaw = params.seeds[0] || '#990000'
+  // Apply profile / keyword subtle adjustment to primary always
+  const primary = adjustSeedProfile(baseRaw, { profile: params.profile, keywords: params.baseKeywords })
+  const providedSecond = params.seeds[1]
+  const providedThird = params.seeds[2]
+  const locks = params.lockedSeeds || []
+  let chosenHarmony: HarmonyKind | undefined
+  const explicit = providedSecond || providedThird
+  if (!explicit) {
+    if (params.harmonyMode && params.harmonyMode !== 'auto') {
+      chosenHarmony = params.harmonyMode
+    } else {
+      chosenHarmony = pickAutoHarmony({ base: primary, profile: params.profile, keywords: params.baseKeywords })
+      notes.push(`[harmony:auto] choisi=${chosenHarmony}`)
+    }
   }
+  if (explicit) {
+    // Adjust provided seeds softly only if user did not saturate (avoid large drift)
+    const secondAdj = providedSecond ? (locks[1] ? providedSecond : adjustSeedProfile(providedSecond, { profile: params.profile, keywords: params.baseKeywords })) : undefined
+    const thirdAdj = providedThird ? (locks[2] ? providedThird : adjustSeedProfile(providedThird, { profile: params.profile, keywords: params.baseKeywords })) : undefined
+    return { seeds: [primary, secondAdj, thirdAdj].filter(Boolean) as string[] }
+  }
+  if (chosenHarmony) {
+    let derived = deriveHarmonySeeds(primary, chosenHarmony)
+    // Respect locks: if user locked index 1 or 2 but didn't supply a seed, keep gap (will be treated as absent)
+    if (locks[1] && !providedSecond) derived[1] = undefined as any
+    if (locks[2] && !providedThird) derived[2] = undefined as any
+    return { seeds: derived.filter(Boolean) as string[], chosenHarmony }
+  }
+  // Fallback legacy based on mode
   switch (params.mode) {
-    case 'dual': return [base, mk(180)]
-    case 'triad': return [base, mk(120), mk(-120)]
-    case 'mono': return [base]
-    default: return [base]
+    case 'dual': return { seeds: [primary, rotate(primary,180)] }
+    case 'triad': return { seeds: [primary, rotate(primary,120), rotate(primary,-120)] }
+    default: return { seeds: [primary] }
   }
 }
 
@@ -109,8 +139,45 @@ function variantsFor(baseName: string, baseHex: string, bg: string, internalCont
 export function generatePalette(params: GenerationParams): GeneratedResult {
   const warnings: string[] = []
   const notes: string[] = []
-  const seeds = deriveSeeds(params).map(s => adjustSaturation(s, params.saturation))
+  const { seeds: seedsDerived, chosenHarmony } = deriveSeeds(params, notes)
+  const seedsRaw = seedsDerived
+  // Balance saturation: if auto generated secondary/accent and harmony triad/analogous, slightly reduce sat for harmony stability
+  const seeds = seedsRaw.map((s,i) => {
+    const satFactor = (i===0)? params.saturation : (params.harmonyMode==='triad' ? params.saturation*0.92 : params.harmonyMode==='analogous' ? params.saturation*0.95 : params.saturation)
+    return adjustSaturation(s, satFactor)
+  })
   const primary = seeds[0]
+  // Luminance separation heuristic: ensure secondary slightly lighter and accent slightly darker than primary if auto-generated
+  const autoSecondary = !seedsRaw[1]
+  const autoAccent = !seedsRaw[2]
+  let secondary = seeds[1]
+  let accent = seeds[2]
+  if (!secondary && primary) secondary = mix(primary, '#ffffff', 0.18)
+  if (!accent) accent = (seeds[1] ? mix(seeds[1], '#000000', 0.18) : primary ? mix(primary, '#000000', 0.22) : primary)
+  const primaryLum = luminance(primary)
+  const adjustLum = (hex: string, targetDelta: number) => {
+    const p = parse(hex); if (!p) return hex
+    const hsl = toHsl(p)
+    // Adjust lightness in HSL space modestly
+    const baseL = hsl.l ?? 0.5
+    hsl.l = clamp01(baseL + targetDelta)
+    return formatHex(toRgb(hsl)) || hex
+  }
+  if (autoSecondary && secondary) {
+    if (luminance(secondary) <= primaryLum) secondary = adjustLum(secondary, 0.06)
+  }
+  if (autoAccent && accent) {
+    if (luminance(accent) >= primaryLum) accent = adjustLum(accent, -0.07)
+  }
+  // Ensure perceptual separation (ΔE) if auto generated
+  if (autoSecondary && secondary) {
+    const { b } = ensureSeparation(primary, secondary)
+    secondary = b
+  }
+  if ((autoAccent || autoSecondary) && accent) {
+    const { b } = ensureSeparation(secondary || primary, accent)
+    accent = b
+  }
 
   // Light theme anchors
   // Background layering (light)
@@ -134,8 +201,8 @@ export function generatePalette(params: GenerationParams): GeneratedResult {
   const darkText = ensureFg(darkBg, params.minContrast)
   const darkBorder = mix(darkBg, darkText, 0.22)
 
-  const baseLight: Record<string,string> = { primary, background: lightBg, surface: lightSurface, text: lightText, border: lightBorder }
-  const baseDark: Record<string,string>  = { primary, background: darkBg, surface: darkSurface, text: darkText, border: darkBorder }
+  const baseLight: Record<string,string> = { primary, secondary, accent, background: lightBg, surface: lightSurface, text: lightText, border: lightBorder }
+  const baseDark: Record<string,string>  = { primary, secondary, accent, background: darkBg, surface: darkSurface, text: darkText, border: darkBorder }
 
   if (params.includeSemantic) {
     const p = parse(primary)
@@ -148,11 +215,12 @@ export function generatePalette(params: GenerationParams): GeneratedResult {
         clone.l = clamp01((clone.l||0)+lDelta)
         return formatHex(toRgb(clone)) || primary
       }
+      // Conservative semantic derivation: only rotate hue, do not push saturation/lightness aggressively
       const allSemantic: Record<string,string> = {
         success: mk(120, 0, 0),
-        danger: mk(300, 0, -0.05),
-        warning: mk(45, 0.05, 0.05),
-        info: mk(-60, 0, 0)
+        danger: mk(-60, 0, 0),
+        warning: mk(45, 0, 0),
+        info: mk(-120, 0, 0)
       }
       const allowed = (params.semanticsTokens && params.semanticsTokens.length)
         ? params.semanticsTokens
@@ -188,7 +256,7 @@ export function generatePalette(params: GenerationParams): GeneratedResult {
   params.variantScope.forEach(tok => {
     const exists = !!(baseLight[tok] || baseDark[tok])
     if (!exists) {
-      warnings.push(`Variant ignoré: token '${tok}' absent`) ; return
+      warnings.push(`[variant] Variant ignoré: token '${tok}' absent`) ; return
     }
     if (baseLight[tok]) Object.assign(baseLight, variantsFor(tok, baseLight[tok], lightBg, params.internalContrast))
     if (baseDark[tok]) Object.assign(baseDark, variantsFor(tok, baseDark[tok], darkBg, params.internalContrast))
@@ -251,7 +319,7 @@ export function generatePalette(params: GenerationParams): GeneratedResult {
             attempts++
           }
           if (d < params.distanceThreshold) {
-            warnings.push(`Distance sémantique encore faible (${a}/${b}) ΔE=${d.toFixed(2)} après ajustements`)
+            warnings.push(`[distance] Distance sémantique encore faible (${a}/${b}) ΔE=${d.toFixed(2)} après ajustements`)
           } else if (attempts > 0) {
             notes.push(`Ajustement ${b} (${attempts} itérations) pour ΔE=${d.toFixed(2)}`)
           }
@@ -277,7 +345,7 @@ export function generatePalette(params: GenerationParams): GeneratedResult {
         const A=hexTo(baseLight[a]),B=hexTo(baseLight[b]);const dr=A.r-B.r,dg=A.g-B.g,db=A.b-B.b;return Math.sqrt(dr*dr+dg*dg+db*db)
       })()
       if (dE < 5 || rgbDist < 24) {
-        warnings.push(`Collision chromatique ${a}/${b} ΔE=${dE.toFixed(2)} rgbDist=${Math.round(rgbDist)}`)
+        warnings.push(`[collision] Collision chromatique ${a}/${b} ΔE=${dE.toFixed(2)} rgbDist=${Math.round(rgbDist)}`)
       }
     }
   }
@@ -299,5 +367,5 @@ export function generatePalette(params: GenerationParams): GeneratedResult {
     metric.accessibilityScore = (metric.avgFgContrast/params.minContrast)*0.6 + Math.min(1, metric.semanticDiversity/20)*0.4
   }
 
-  return { light: baseLight, dark: baseDark, meta: { warnings, notes, metrics: metric } }
+  return { light: baseLight, dark: baseDark, meta: { warnings, notes, metrics: metric, chosenHarmony } }
 }

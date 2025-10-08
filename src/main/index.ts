@@ -1,14 +1,27 @@
 import { app, BrowserWindow, ipcMain, dialog, nativeImage, nativeTheme, Menu } from 'electron'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import fs from 'node:fs/promises'
 import Store from 'electron-store'
+
+// Optional userData override & cache toggles (must be before app ready logic ideally)
+const customUserData = process.env.CRIMSON_USER_DATA
+if (customUserData) {
+  try { app.setPath('userData', customUserData) } catch { /* ignore */ }
+}
+if (process.env.CRIMSON_DISABLE_GPU_CACHE === '1') {
+  app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
+}
+if (process.env.CRIMSON_DISABLE_HTTP_CACHE === '1') {
+  app.commandLine.appendSwitch('disable-http-cache')
+}
 
 const store = new Store({ name: 'crimson-store' })
 
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
 
 let mainWindow: BrowserWindow | null = null
+let splashWindow: BrowserWindow | null = null
+let showTimeout: NodeJS.Timeout | null = null
 
 function resolveIcon() {
   // Prefer platform-specific assets
@@ -33,6 +46,41 @@ function resolveIcon() {
   return undefined
 }
 
+async function createSplash() {
+  // Only show splash in production (avoid dev flicker) and if not disabled via env
+  const showSplash = app.isPackaged && process.env.CRIMSON_NO_SPLASH !== '1'
+  if (!showSplash) return
+  splashWindow = new BrowserWindow({
+    width: 340,
+    height: 340,
+    transparent: true,
+    frame: false,
+    resizable: false,
+    show: false,
+    alwaysOnTop: true,
+    backgroundColor: '#00000000',
+  })
+  const splashHtml = `<!DOCTYPE html><html><head><meta charset='utf-8'><title>Crimson</title><style>
+    html,body{margin:0;padding:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 35%,#10121a,#06070a);font-family:system-ui,sans-serif;color:#eee}
+    .fade-in{animation:fade .6s cubic-bezier(.16,.8,.24,1)}
+    @keyframes fade{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+    @media (prefers-reduced-motion: reduce){.fade-in{animation:none}}
+    .hint{position:absolute;bottom:10px;font-size:11px;letter-spacing:.5px;opacity:.55}
+  </style></head><body>
+  <div class='fade-in' id='logo'>Chargement…</div>
+  <div class='hint'>Initialisation de la palette…</div>
+  <script>
+    fetch('./assets/temp/crimson_icon_animated.svg').then(r=>r.text()).then(svg=>{document.getElementById('logo').innerHTML = svg}).catch(()=>{document.getElementById('logo').textContent='Crimson'})
+  </script>
+  </body></html>`
+  try {
+    const tmpPath = join(app.getPath('userData'), 'splash.html')
+    await fs.writeFile(tmpPath, splashHtml, 'utf-8')
+    await splashWindow.loadFile(tmpPath)
+    splashWindow.showInactive()
+  } catch { /* ignore */ }
+}
+
 async function createWindow() {
   const isDev = !app.isPackaged
 
@@ -42,12 +90,15 @@ async function createWindow() {
     app.setAppUserModelId('com.crimson.app')
   }
 
+  await createSplash()
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     title: 'Crimson',
     backgroundColor: '#0b0b0c',
     icon: icon,
+    show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
@@ -56,33 +107,36 @@ async function createWindow() {
     }
   })
 
-  // Application menu (add File > New Project)
-  const template: Electron.MenuItemConstructorOptions[] = [
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'Nouveau Projet',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => {
-            // Send renderer a reset request; renderer will perform store reset
-            mainWindow?.webContents.send('app:new-project')
-          }
-        },
-        { type: 'separator' },
-        { role: 'quit', label: 'Quitter' }
-      ]
-    },
-    { role: 'editMenu' as any },
-    { role: 'viewMenu' as any },
-    { role: 'windowMenu' as any }
-  ]
-  const menu = Menu.buildFromTemplate(template)
-  Menu.setApplicationMenu(menu)
+  // Fallback show if load events never fire (e.g. dev server port mismatch)
+  showTimeout = setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show()
+      if (splashWindow) {
+        splashWindow.close()
+        splashWindow = null
+      }
+    }
+  }, 8000)
+
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
+    console.warn('Renderer failed to load:', code, desc)
+    if (!mainWindow) return
+    mainWindow.show()
+    if (splashWindow) {
+      splashWindow.close()
+      splashWindow = null
+    }
+  })
 
   if (isDev && process.env['ELECTRON_RENDERER_URL']) {
-    await mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
+    try {
+      await mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+      mainWindow.webContents.openDevTools({ mode: 'detach' })
+    } catch (err) {
+      console.error('Failed to load dev URL, attempting fallback file:', err)
+      const indexHtml = join(__dirname, '../renderer/index.html')
+      await mainWindow.loadFile(indexHtml)
+    }
   } else {
     const indexHtml = join(__dirname, '../renderer/index.html')
     await mainWindow.loadFile(indexHtml)
@@ -92,9 +146,17 @@ async function createWindow() {
     mainWindow = null
   })
 
-  // Notify renderer of initial system theme
   mainWindow.webContents.once('did-finish-load', () => {
+    if (showTimeout) {
+      clearTimeout(showTimeout)
+      showTimeout = null
+    }
     mainWindow?.webContents.send('system-theme', nativeTheme.shouldUseDarkColors ? 'dark' : 'light')
+    mainWindow?.show()
+    if (splashWindow) {
+      splashWindow.close()
+      splashWindow = null
+    }
   })
 }
 
